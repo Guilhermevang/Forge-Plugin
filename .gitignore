@@ -1,0 +1,16 @@
+node_modules/
+
+# Estado local do canal (token, access.json, inbox)
+.env
+access.json
+inbox/
+approved/
+bot.pid
+
+# Build artifacts
+dist/
+out/
+
+# OS
+.DS_Store
+Thumbs.db
