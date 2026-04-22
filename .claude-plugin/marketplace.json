@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "forge",
+  "description": "Forge — Telegram bridge com time interno de agentes para Claude Code",
+  "owner": {
+    "name": "Guilherme Evangelista"
+  },
+  "plugins": [
+    {
+      "name": "forge",
+      "description": "Telegram bridge com time interno de agentes: PO, Tech Lead, Developer e QA trabalham juntos para entregar cada tarefa com qualidade.",
+      "category": "productivity",
+      "source": "./"
+    }
+  ]
+}

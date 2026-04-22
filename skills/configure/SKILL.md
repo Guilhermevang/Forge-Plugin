@@ -54,7 +54,7 @@ Condução da conversa:
 3. Leia o `.env` existente se houver; atualize/adicione a linha `FORGE_BOT_TOKEN=`, preserve outras chaves. Escreva de volta sem aspas ao redor do valor.
 4. `chmod 600 ~/.claude/channels/forge/.env` — o token é uma credencial.
 5. Confirme e mostre o status (sem argumentos) para o usuário ver o estado atual.
-6. Informe que o servidor lê o `.env` apenas no boot — mudanças de token precisam reiniciar a sessão com `claude --channels plugin:forge`.
+6. Informe que o servidor lê o `.env` apenas no boot — mudanças de token precisam reiniciar o Claude Code.
 
 ### `clear` — remover token
 
