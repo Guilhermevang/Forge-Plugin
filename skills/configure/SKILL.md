@@ -1,69 +1,108 @@
 ---
 name: configure
-description: Configura o token do bot Telegram para o canal Forge. Use quando o usuário colar um token do BotFather, pedir para configurar o Forge, ou querer ver o status atual do canal.
+description: Configura canais Forge — cria novos canais com token do BotFather, registra no MCP e mostra status. Use quando o usuário colar um token, pedir para configurar o Forge, listar canais existentes, ou verificar o status de um canal.
 user-invocable: true
 allowed-tools:
   - Read
   - Write
   - Bash(ls *)
+  - Bash(find *)
   - Bash(mkdir *)
   - Bash(chmod *)
+  - Bash(claude mcp *)
+  - Bash(python3 *)
 ---
 
-# /forge:configure — Configuração do Canal Forge
+# /forge:configure — Configuração de Canais Forge
 
-Grava o token do bot em `~/.claude/channels/forge/.env` e orienta o usuário sobre a política de acesso. O servidor lê esse arquivo no boot.
+Cada canal Forge é um bot Telegram independente. O estado de cada canal fica em `~/.claude/channels/<nome>/`. O servidor MCP é registrado globalmente via `claude mcp add --scope user`.
 
 Argumentos recebidos: `$ARGUMENTS`
 
 ---
 
+## Localizar o server.ts do Forge
+
+Antes de registrar qualquer canal, você precisa do caminho absoluto do `server.ts`. Tente nesta ordem:
+
+1. `python3 -c "import json; d=json.load(open('/home/$(whoami)/.claude.json')); servers=d.get('mcpServers',{}); forge=[v['args'][0] for k,v in servers.items() if k.startswith('forge-') and 'args' in v]; print(forge[0] if forge else '')"` — extrai de um servidor já registrado.
+2. Se vazio, `find ~/.claude/plugins/cache -name "server.ts" -path "*/forge/*" 2>/dev/null | head -1`
+3. Se ainda vazio, informe o usuário que o plugin não foi encontrado e peça para reinstalar via `/plugins`.
+
+Guarde como `SERVER_PATH`.
+
+---
+
 ## Dispatch por argumentos
 
-### Sem argumentos — status e orientação
+Parse `$ARGUMENTS` (trim whitespace).
 
-Leia os dois arquivos de estado e mostre um panorama completo:
+### Sem argumentos — status geral
 
-1. **Token** — verifique `~/.claude/channels/forge/.env` para `FORGE_BOT_TOKEN`.
-   Mostre configurado/não-configurado; se configurado, mostre os primeiros 10 chars mascarados (`123456789:...`).
+1. Execute `claude mcp list 2>/dev/null` e filtre linhas com `forge-` para listar canais ativos.
+2. Para cada canal `forge-<nome>`, determine o `FORGE_STATE_DIR` lendo `~/.claude.json`:
+   `python3 -c "import json; d=json.load(open('/home/$(whoami)/.claude.json')); [print(k, v.get('env',{}).get('FORGE_STATE_DIR','')) for k,v in d.get('mcpServers',{}).items() if k.startswith('forge-')]"`
+3. Para cada canal, leia o `.env` e o `access.json` no `FORGE_STATE_DIR`.
+4. Exiba uma tabela: **Canal**, **Token** (primeiros 10 chars mascarados), **Política**, **Permitidos**.
+5. Se nenhum canal, mostre orientação:
+   > *"Nenhum canal configurado. Execute `/forge:configure <nome> <token>` para criar o primeiro."*
+6. Conduza a conversa (veja seção abaixo).
 
-2. **Acesso** — leia `~/.claude/channels/forge/access.json` (arquivo ausente = defaults: `dmPolicy: "pairing"`, allowlist vazia). Mostre:
-   - Política de DM e o que ela significa em uma linha
-   - Usuários permitidos: contagem e lista de IDs
-   - Pairings pendentes: contagem, com códigos e IDs se houver
+---
 
-3. **Próximo passo** — termine com uma ação concreta baseada no estado:
-   - Sem token → *"Execute `/forge:configure <token>` com o token do BotFather."*
-   - Token configurado, política é pairing, ninguém permitido → *"Mande uma DM pro seu bot no Telegram. Ele responde com um código; aprove com `/forge:access pair <código>`."*
-   - Token configurado, alguém permitido → *"Pronto. Mande tarefas pelo Telegram para acionar o time Forge."*
+### `<nome> <token>` — criar ou atualizar canal
 
-**Empurre sempre para o lockdown.** O objetivo é `allowlist` com uma lista definida. `pairing` é temporário — só para capturar IDs. Após capturar todos os IDs, mude para `allowlist`.
+`<nome>` é o identificador do canal (ex: `dropflux-backend`, `frontend`, `mobile`).
+`<token>` é o token do BotFather (formato `123456789:AAH...`).
 
-Condução da conversa:
-1. Leia a allowlist. Informe quem está nela.
-2. Pergunte: *"É todo mundo que deve acessar o Forge por esse bot?"*
-3. **Se sim e a política ainda é `pairing`** → *"Ótimo. Vamos travar:"* e ofereça executar `/forge:access policy allowlist`.
-4. **Se não, faltam pessoas** → *"Peça para elas mandarem DM pro bot; você aprova cada uma com `/forge:access pair <código>`."*
-5. **Se allowlist vazia e o próprio usuário ainda não pareou** → *"Mande uma DM pro seu bot primeiro para capturar seu próprio ID."*
-6. **Se política já é `allowlist`** → confirme que está travado. Para adicionar alguém: *"Você pode mudar brevemente para pairing: `/forge:access policy pairing` → eles mandam DM → você aprova → volta para allowlist."*
+1. Valide que `<token>` contém `:`. Se não, avise e pare.
+2. `mkdir -p ~/.claude/channels/<nome>`
+3. Leia o `.env` existente em `~/.claude/channels/<nome>/.env` se houver; atualize/adicione a linha `FORGE_BOT_TOKEN=<token>`, preserve outras chaves. Escreva de volta sem aspas.
+4. `chmod 600 ~/.claude/channels/<nome>/.env`
+5. Localize `SERVER_PATH` (veja seção acima).
+6. **Registrar o servidor MCP:**
+   ```bash
+   claude mcp add -e FORGE_STATE_DIR=/home/<user>/.claude/channels/<nome> --scope user forge-<nome> -- bun <SERVER_PATH>
+   ```
+   Use o caminho absoluto expandido (nunca `~`). Se o servidor já existir, o `claude mcp add` vai sobrescrever — isso é ok.
+7. Confirme: *"Canal `<nome>` registrado. Reinicie o Claude Code para ativar o servidor."*
+8. Mostre o status do canal (token, política, permitidos).
+9. Conduza a conversa (veja abaixo).
 
-### `<token>` — salvar token
+---
 
-1. Trate `$ARGUMENTS` como o token (trim whitespace). Tokens do BotFather: `123456789:AAH...`.
-2. `mkdir -p ~/.claude/channels/forge`
-3. Leia o `.env` existente se houver; atualize/adicione a linha `FORGE_BOT_TOKEN=`, preserve outras chaves. Escreva de volta sem aspas ao redor do valor.
-4. `chmod 600 ~/.claude/channels/forge/.env` — o token é uma credencial.
-5. Confirme e mostre o status (sem argumentos) para o usuário ver o estado atual.
-6. Informe que o servidor lê o `.env` apenas no boot — mudanças de token precisam reiniciar o Claude Code.
+### `<nome>` — status de um canal específico
 
-### `clear` — remover token
+1. Verifique se `forge-<nome>` existe nos servidores MCP (via `claude mcp list`).
+2. Leia `~/.claude/channels/<nome>/.env` e `~/.claude/channels/<nome>/access.json`.
+3. Mostre: token (mascarado), política, permitidos, pendentes.
+4. Conduza a conversa (veja abaixo).
 
-Delete a linha `FORGE_BOT_TOKEN=` (ou o arquivo inteiro se for a única linha).
+---
+
+### `<nome> clear` — remover canal
+
+1. Delete a linha `FORGE_BOT_TOKEN=` do `.env` (ou o arquivo todo se for a única linha).
+2. Execute `claude mcp remove forge-<nome> --scope user`.
+3. Confirme e avise que é necessário reiniciar o Claude Code.
+
+---
+
+## Condução da conversa
+
+Após mostrar o status de qualquer canal, empurre sempre para o lockdown:
+
+1. **Sem token** → *"Execute `/forge:configure <nome> <token>` com o token do BotFather."*
+2. **Token configurado, política `pairing`, ninguém permitido** → *"Mande uma DM pro seu bot no Telegram. Ele responde com um código; aprove com `/forge:access <nome> pair <código>`."*
+3. **Token configurado, alguém permitido, política ainda `pairing`** → *"Quer travar o acesso? Execute `/forge:access <nome> policy allowlist`."*
+4. **Token configurado, política `allowlist`** → *"Pronto. Mande tarefas pelo Telegram para acionar o time Forge."*
 
 ---
 
 ## Notas de implementação
 
-- O diretório de channels pode não existir se o servidor ainda não rodou. Arquivo ausente = não configurado, não é erro.
-- `access.json` é relido a cada mensagem recebida — mudanças de política via `/forge:access` têm efeito imediato, sem restart.
-- Pretty-print o JSON (indent 2 espaços) para facilitar edição manual.
+- `access.json` ausente = defaults: `{dmPolicy:"pairing", allowFrom:[], groups:{}, pending:{}}`.
+- Pretty-print JSON com 2 espaços.
+- O servidor relê o `.env` apenas no boot — mudanças de token requerem restart do Claude Code.
+- `access.json` é relido a cada mensagem — mudanças de política via `/forge:access` têm efeito imediato.
+- O `claude mcp add --scope user` grava em `~/.claude.json`.
