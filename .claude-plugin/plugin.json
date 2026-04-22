@@ -1,0 +1,14 @@
+{
+  "name": "forge",
+  "description": "Telegram bridge com time interno de agentes: PO, Tech Lead, Developer e QA trabalham juntos para entregar cada tarefa com qualidade.",
+  "version": "1.0.0",
+  "keywords": [
+    "telegram",
+    "agents",
+    "development",
+    "channel"
+  ],
+  "author": {
+    "name": "Guilherme"
+  }
+}
