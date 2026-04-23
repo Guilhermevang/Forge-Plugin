@@ -10,16 +10,20 @@ const INPUT_SCHEMA = {
   message_id: z.string(),
   text: z.string(),
   format: z
-    .enum(['text', 'markdownv2'])
+    .enum(['html', 'text', 'markdownv2'])
     .optional()
-    .describe("Modo de renderização. Default: 'text'."),
+    .describe(
+      "Modo de renderização. Default: 'html'. Mesmas regras do forge_reply: " +
+        'tags suportadas <b>, <i>, <u>, <s>, <code>, <pre>, <a href>, <blockquote>, <tg-spoiler>. ' +
+        "Use 'text' quando o conteúdo tiver <, > ou & sem escape.",
+    ),
 } as const
 
 type EditArgs = {
   chat_id: string
   message_id: string
   text: string
-  format?: 'text' | 'markdownv2'
+  format?: 'html' | 'text' | 'markdownv2'
 }
 
 export class EditTool implements McpTool {
@@ -42,7 +46,9 @@ export class EditTool implements McpTool {
 
   private async execute(args: EditArgs) {
     assertAllowedChat(this.store, args.chat_id)
-    const parseMode = args.format === 'markdownv2' ? ('MarkdownV2' as const) : undefined
+    const format = args.format ?? 'html'
+    const parseMode =
+      format === 'html' ? ('HTML' as const) : format === 'markdownv2' ? ('MarkdownV2' as const) : undefined
     const edited = await this.bot.api.editMessageText(
       args.chat_id,
       Number(args.message_id),

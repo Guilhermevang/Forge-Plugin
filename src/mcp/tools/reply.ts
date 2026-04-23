@@ -6,7 +6,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { Config } from '../../core/config'
 import type { AccessStore } from '../../access/store'
 import { assertAllowedChat, assertSendable } from '../../access/assert'
-import { chunk } from '../../telegram/chunk'
+import { chunk, chunkHtml } from '../../telegram/chunk'
 import { MAX_ATTACHMENT_BYTES, MAX_CHUNK_LIMIT, PHOTO_EXTS } from '../../core/constants'
 import type { McpTool } from './deps'
 
@@ -24,9 +24,14 @@ const INPUT_SCHEMA = {
       'Caminhos absolutos para anexar. Imagens vão como fotos; outros tipos como documentos. Máx 50MB cada.',
     ),
   format: z
-    .enum(['text', 'markdownv2'])
+    .enum(['html', 'text', 'markdownv2'])
     .optional()
-    .describe("Modo de renderização. 'markdownv2' habilita formatação Telegram. Default: 'text'."),
+    .describe(
+      "Modo de renderização. Default: 'html'. Tags suportadas pelo Telegram: " +
+        '<b>, <i>, <u>, <s>, <code>, <pre>, <a href="…">, <blockquote>, <tg-spoiler>. ' +
+        'Fora de tags, escape & como &amp;, < como &lt; e > como &gt;. ' +
+        "Use 'text' se o conteúdo contém <, > ou & não escapados (desliga parse_mode).",
+    ),
 } as const
 
 type ReplyArgs = {
@@ -34,8 +39,10 @@ type ReplyArgs = {
   text: string
   reply_to?: string
   files?: string[]
-  format?: 'text' | 'markdownv2'
+  format?: 'html' | 'text' | 'markdownv2'
 }
+
+const DEFAULT_FORMAT: NonNullable<ReplyArgs['format']> = 'html'
 
 export class ReplyTool implements McpTool {
   static readonly NAME = 'forge_reply'
@@ -61,7 +68,9 @@ export class ReplyTool implements McpTool {
     const { chat_id, text } = args
     const reply_to = args.reply_to != null ? Number(args.reply_to) : undefined
     const files = args.files ?? []
-    const parseMode = args.format === 'markdownv2' ? ('MarkdownV2' as const) : undefined
+    const format = args.format ?? DEFAULT_FORMAT
+    const parseMode =
+      format === 'html' ? ('HTML' as const) : format === 'markdownv2' ? ('MarkdownV2' as const) : undefined
 
     assertAllowedChat(this.store, chat_id)
 
@@ -80,7 +89,8 @@ export class ReplyTool implements McpTool {
     const limit = Math.max(1, Math.min(access.textChunkLimit ?? MAX_CHUNK_LIMIT, MAX_CHUNK_LIMIT))
     const mode = access.chunkMode ?? 'length'
     const replyMode = access.replyToMode ?? 'first'
-    const chunks = chunk(text, limit, mode)
+    // HTML exige chunking que fecha/reabre tags no corte — senão o Telegram rejeita o segundo pedaço.
+    const chunks = format === 'html' ? chunkHtml(text, limit) : chunk(text, limit, mode)
     const sentIds: number[] = []
 
     try {
