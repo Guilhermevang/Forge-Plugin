@@ -1,0 +1,185 @@
+@startuml 00-system-design
+title Forge — System Design (visão consolidada)
+
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam rectangle {
+  RoundCorner 12
+}
+skinparam defaultFontName "Inter, Segoe UI, sans-serif"
+
+' ============================================================
+' ATORES
+' ============================================================
+actor "Usuário\n(solicitante)" as User
+actor "Operador\n(dono do terminal)" as Ops
+
+' ============================================================
+' TELEGRAM (nuvem)
+' ============================================================
+cloud "Telegram" as Cloud {
+  component "Bot API\n(HTTPS long polling)" as TGAPI
+}
+
+' ============================================================
+' MÁQUINA DO OPERADOR
+' ============================================================
+node "Máquina do operador" as Host {
+
+  node "Shell\n(bash / zsh / pwsh)" as Shell {
+    component "launcher `forge`\n(função injetada no rc)" as Launcher
+  }
+
+  node "Claude Code\n(processo CLI)" as CC {
+    component "Kernel" as Kernel
+    component "Subagentes\nPO · TL · Dev · QA" as Agents
+    component "Skills\nconfigure · access" as Skills
+  }
+
+  ' ------ Processo server.ts (Bun) — 1 por canal ------
+  node "Forge MCP Server\n(processo Bun, 1 por canal)" as Srv {
+
+    package "Transporte" as PTrans {
+      component "grammy Bot\n(long polling)" as Grammy
+      component "McpServer stdio\n(@mcp/sdk)" as Mcp
+    }
+
+    package "Access" as PAccess {
+      component "AccessStore\nload · save" as AStore
+      component "gate()\npolítica + allowlist" as Gate
+      component "ModeStore\nedit | ask" as ModeS
+    }
+
+    package "Telegram handlers" as PTg {
+      component "CommandHandlers\n/start /help /status /mode" as Cmds
+      component "CallbackHandlers\nperm:allow · deny · more" as Cbs
+      component "MessageRouter" as Router
+      component "InboundPipeline\ngate → perm → notify" as Pipe
+      component "Modality handlers\ntext · photo · document · voice" as Mod
+      component "ApprovalsWatcher\n(poll 5s)" as Appr
+    }
+
+    package "MCP tools" as PTools {
+      component "forge_reply" as Treply
+      component "forge_react" as Treact
+      component "forge_edit_message" as Tedit
+      component "forge_download_attachment" as Tdl
+      component "PermissionBroker\n(inline keyboard)" as Perm
+    }
+
+    package "Lifecycle" as PLife {
+      component "ShutdownManager" as Shut
+      component "OrphanWatchdog" as Dog
+    }
+  }
+
+  ' ------ Estado em disco ------
+  folder "~/.claude/" as Home {
+    folder "channels/<nome>/" as Ch {
+      file ".env\n(FORGE_BOT_TOKEN, chmod 600)" as EnvF
+      file "access.json\npolicy · allowFrom · pending" as AccF
+      file "mode\nedit | ask" as ModeF
+      file "bot.pid" as PidF
+      folder "approved/\n(efêmero)" as AppF
+      folder "inbox/\n(fotos, documentos)" as InF
+    }
+    file "settings.json\n(allowlist tools)" as Settings
+    folder "plugins/forge/\nsrc/ · agents/ · skills/" as Plug
+  }
+
+  ' ------ Repositório de trabalho ------
+  folder "Repositório (working dir)" as Repo {
+    file "CLAUDE.md" as CMD
+    file "código + .git" as Code
+    file ".claude/forge-channel" as Pin
+  }
+}
+
+' ============================================================
+' LIGAÇÕES — usuário e operador
+' ============================================================
+User --> TGAPI : envia tarefa\n(texto, foto, doc)
+Ops --> Launcher : `forge <canal>`
+Launcher --> CC : exec claude\n+ FORGE_CHANNEL=<n>\n+ --permission-mode
+Ops --> Skills : /forge:configure\n/forge:access
+
+' ============================================================
+' LIGAÇÕES — Telegram ↔ servidor
+' ============================================================
+TGAPI <--> Grammy : sendMessage · setReaction\ngetFile · long polling
+Grammy --> Router
+Router --> Mod
+Mod --> Pipe : deliver(ctx, text, attach?)
+Pipe --> Gate
+Gate --> AStore
+Pipe --> Mcp : notifications/claude/channel
+Cmds ..> AStore
+Cmds ..> ModeS
+Cbs ..> Perm
+Appr --> AppF
+Appr --> Grammy : "Pareado!"
+
+' ============================================================
+' LIGAÇÕES — MCP ↔ Claude Code
+' ============================================================
+Mcp <--> Kernel : stdio
+Kernel --> Agents : spawn sequencial\n(apenas tarefas de dev)
+Kernel --> Treply
+Kernel --> Treact
+Kernel --> Tedit
+Kernel --> Tdl
+Perm --> Mcp : notifications/.../permission
+Perm --> Grammy : inline keyboard\n(✅ / ❌ / Ver mais)
+
+Treply --> Grammy
+Treact --> Grammy
+Tedit --> Grammy
+Tdl --> InF
+Tdl --> Grammy : getFile
+
+' ============================================================
+' LIGAÇÕES — filesystem
+' ============================================================
+AStore --> AccF
+ModeS --> ModeF
+Grammy --> EnvF : lê no boot
+Shut --> PidF
+CC --> Settings : carrega permissões
+CC --> Plug : carrega plugin
+Agents --> Code : lê / edita / testa\ngit commit
+Skills ..> Ch : cria · edita
+Skills ..> Settings
+
+' ============================================================
+' LIGAÇÕES — ciclo de vida do processo
+' ============================================================
+Shut --> Grammy : stop()
+Shut --> Mcp : close()
+Dog --> Shut : ppid mudou / stdin closed
+
+' ============================================================
+' Notas
+' ============================================================
+note right of Srv
+  1 processo Forge por canal.
+  PidF evita 409 Conflict:
+  Telegram só aceita um
+  poller por token.
+end note
+
+note bottom of CC
+  Pipeline dos 4 agentes
+  só é disparado para
+  TAREFAS DE DEV concretas.
+  Conversas/status vão
+  diretamente via forge_reply.
+end note
+
+note left of Home
+  Estado é global (por canal).
+  Working dir só contém código
+  + .claude/forge-channel
+  apontando para o canal ativo.
+end note
+
+@enduml

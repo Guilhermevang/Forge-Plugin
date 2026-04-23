@@ -1,99 +1,209 @@
 # Forge
 
-Forge é um plugin para o **Claude Code** que transforma seu Telegram em uma interface de desenvolvimento. Você manda uma tarefa pelo celular — "crie uma rota de login", "corrija esse bug", "adicione paginação na listagem" — e um time de agentes de IA (PO, Tech Lead, Developer, QA) planeja, implementa, revisa e commita no seu repositório.
+> **Mande tarefas de programação pelo Telegram. Um time de IA faz o trabalho.**
 
-Você não precisa estar na frente do computador. O Forge trabalha enquanto você está em reunião, no celular, ou fora do escritório.
+Forge é um plugin para o **Claude Code** que transforma seu Telegram em um canal direto com um time de agentes de IA. Você manda uma mensagem — _"cria um endpoint de login"_, _"corrige aquele bug da paginação"_, _"adiciona validação de CPF"_ — e quatro agentes especializados (Product Owner, Tech Lead, Developer, QA) planejam, implementam, revisam e commitam no seu repositório.
 
-Você pode ter **um bot por projeto** — cada um com seu próprio canal, allowlist e histórico de acesso. Tudo configurado com um único comando, sem variáveis de ambiente manuais.
+Você não precisa estar na frente do computador. O Forge trabalha enquanto você está em reunião, no ônibus, ou tomando um café.
 
 ---
 
-## Como funciona na prática
+## 📖 Sumário
+
+1. [Quem é esse tal de Claude Code?](#-quem-é-esse-tal-de-claude-code)
+2. [Como funciona o Forge na prática](#-como-funciona-o-forge-na-prática)
+3. [Antes de começar](#-antes-de-começar-o-que-você-precisa-ter)
+4. [Instalação passo a passo](#-instalação-passo-a-passo)
+   - [Passo 1 — Criar um bot no Telegram](#passo-1--criar-um-bot-no-telegram)
+   - [Passo 2 — Instalar o Forge no Claude Code](#passo-2--instalar-o-forge-no-claude-code)
+   - [Passo 3 — Configurar um canal para seu projeto](#passo-3--configurar-um-canal-para-seu-projeto)
+   - [Passo 4 — Parear seu Telegram](#passo-4--parear-seu-telegram-autorizar-seu-número)
+   - [Passo 5 — Mandar sua primeira tarefa](#passo-5--mandar-sua-primeira-tarefa)
+5. [Trabalhando com vários projetos](#-trabalhando-com-vários-projetos)
+6. [O arquivo CLAUDE.md](#-o-arquivo-claudemd-o-mapa-do-seu-projeto)
+7. [Modo edit vs ask](#-modo-edit-vs-ask-controle-de-autonomia)
+8. [Gerenciando o acesso](#-gerenciando-o-acesso)
+9. [Comandos do bot](#-comandos-do-bot-dentro-do-telegram)
+10. [Perguntas frequentes (FAQ)](#-perguntas-frequentes)
+11. [Quando algo dá errado](#-quando-algo-dá-errado)
+12. [Entendendo a arquitetura](#-entendendo-a-arquitetura-para-curiosos-e-devs)
+
+---
+
+## 🤖 Quem é esse tal de Claude Code?
+
+**Claude Code** é uma ferramenta de linha de comando (o famoso "terminal") da Anthropic que coloca o modelo de IA Claude dentro do seu ambiente de desenvolvimento. Diferente do Claude no navegador, o Claude Code **executa ações de verdade** no seu computador: lê arquivos, edita código, roda testes, faz commits no git.
+
+Não entendeu nada? Tranquilo. Em uma analogia: é como ter um estagiário técnico muito rápido que entra no seu projeto e faz o que você pedir — mas em vez de falar pessoalmente, você conversa via texto.
+
+O **Forge** é um "plugin" (extensão) para o Claude Code que move essa conversa do terminal para o Telegram. Resultado: você pode pedir código de qualquer lugar, usando o celular, e o código aparece no repo do projeto.
+
+---
+
+## ⚙️ Como funciona o Forge na prática
 
 ```
-Você (Telegram) → "adiciona validação de CPF no cadastro"
-  └→ Product Owner analisa e define os critérios de aceite
-      └→ Tech Lead lê o projeto e monta o plano técnico
-          └→ Developer implementa seguindo o plano
-              └→ QA revisa o código e faz o commit
-                  └→ Você recebe no Telegram: "✅ Feito — commit abc1234"
+                     📱 Você (Telegram)
+                          │
+                          │ "adiciona validação de CPF
+                          │  no formulário de cadastro"
+                          ▼
+              ┌───────────────────────┐
+              │  🗂  Product Owner    │   traduz o pedido em
+              │                       │   requisitos objetivos
+              └───────────┬───────────┘
+                          ▼
+              ┌───────────────────────┐
+              │  🏗  Tech Lead         │   lê o projeto e
+              │                       │   define o plano técnico
+              └───────────┬───────────┘
+                          ▼
+              ┌───────────────────────┐
+              │  💻 Developer         │   implementa seguindo
+              │                       │   o plano
+              └───────────┬───────────┘
+                          ▼
+              ┌───────────────────────┐
+              │  ✅ QA Engineer        │   revisa tudo e
+              │                       │   faz o commit
+              └───────────┬───────────┘
+                          ▼
+                     📱 Você (Telegram)
+              "✅ Feito — commit abc1234"
 ```
 
----
-
-## Pré-requisitos
-
-- **Claude Code** — o CLI da Anthropic. Instale com:
-
-  ```bash
-  npm install -g @anthropic/claude-code
-  ```
-
-- **Bun** — o runtime que o Forge usa. Instale com:
-
-  ```bash
-  curl -fsSL https://bun.sh/install | bash
-  ```
-
-- **Uma conta no Telegram** — qualquer conta normal serve.
+Cada "agente" é um especialista virtual com instruções próprias (ficam nos arquivos `agents/*.md` do plugin, e você pode editar para se adequar ao seu projeto).
 
 ---
 
-## Passo 1 — Crie o bot no Telegram
+## 📋 Antes de começar: o que você precisa ter
 
-1. Abra o Telegram e procure por **@BotFather**
-2. Mande `/newbot`
-3. Escolha um nome e username (deve terminar em `bot`)
-4. Guarde o **token** que o BotFather enviar:
+### 1. Um computador com terminal
+
+Linux, macOS ou Windows (via WSL). Se você não sabe o que é terminal, procure "como abrir o terminal no [seu sistema]" no Google — é um programa que vem pré-instalado.
+
+### 2. Claude Code instalado
+
+É o programa principal. No terminal:
+
+```bash
+npm install -g @anthropic-ai/claude-code
+```
+
+> **Não tem `npm`?** Primeiro instale o Node.js em [nodejs.org](https://nodejs.org) (a versão LTS basta).
+
+Depois disso, você deve conseguir rodar `claude` no terminal. A primeira vez ele pede para fazer login na sua conta Anthropic.
+
+### 3. Bun instalado
+
+O Forge roda em cima do Bun (um runtime JavaScript parecido com Node mas mais rápido).
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
+
+Feche e abra o terminal de novo. Teste com `bun --version` — deve mostrar um número.
+
+### 4. Conta no Telegram
+
+Qualquer conta normal serve. Se você não tem, instale o Telegram e faça uma.
+
+---
+
+## 🚀 Instalação passo a passo
+
+### Passo 1 — Criar um bot no Telegram
+
+Um "bot" no Telegram é uma conta automatizada que você controla por código. O Forge precisa de um bot para funcionar como seu canal de comunicação.
+
+1. No Telegram, procure por **@BotFather** (o nome oficial do "criador de bots" do Telegram).
+2. Mande a mensagem `/newbot` para ele.
+3. Ele vai perguntar dois nomes:
+   - **Nome do bot** — aparece nas conversas. Pode ser qualquer coisa, ex.: `Meu Backend`.
+   - **Username** — o @ do bot. Tem que terminar em `bot`. Ex.: `meu_backend_forge_bot`.
+4. Ele responde com uma mensagem contendo o **token** do bot. Parece com isso:
+
    ```
    7391204856:AAHfiqksKZ8WBjkL9mXn2pQ3rVtYwUeE1Fg
    ```
 
-Para múltiplos projetos, repita esse processo — um bot por projeto.
+5. **Guarde esse token.** É a senha do seu bot. Não compartilhe com ninguém — quem tiver esse token controla seu bot.
+
+> 💡 **Dica:** se você trabalha com vários projetos, crie **um bot por projeto**. Facilita separar as conversas (um chat para backend, outro para mobile, etc.).
 
 ---
 
-## Passo 2 — Instale o Forge
+### Passo 2 — Instalar o Forge no Claude Code
 
-No Claude Code, execute `/plugins` e adicione o marketplace apontando para este repositório:
+1. Abra o terminal e rode `claude` (entra no Claude Code).
+2. Dentro dele, digite:
 
-```
-https://github.com/Guilhermevang/Forge-Plugin.git
-```
+   ```
+   /plugins
+   ```
 
-O Claude Code vai listar o plugin Forge disponível para instalar. Habilite-o.
+3. Escolha a opção de adicionar um "marketplace" e cole o endereço deste repositório:
 
----
+   ```
+   https://github.com/Guilhermevang/Forge-Plugin.git
+   ```
 
-## Passo 3 — Configure o canal
+4. O Claude Code lista o plugin **Forge** disponível. Habilite.
 
-Execute no Claude Code, **dentro da pasta do projeto**:
-
-```
-/forge:configure backend 7391204856:AAHfiqksKZ8WBjkL9mXn2pQ3rVtYwUeE1Fg
-```
-
-O `backend` é o nome do canal — use qualquer identificador que faça sentido para o projeto (`frontend`, `mobile`, `api`, etc.).
-
-O Forge:
-- Salva o token em `~/.claude/channels/backend/.env` (global por canal)
-- Pina esse canal no projeto atual gravando `.claude/forge-channel` na raiz do repo
-
-Saia da sessão e reabra com o flag `--channels`:
-
-```bash
-claude --channels plugin:forge@forge
-```
-
-O flag é o que autoriza o Claude Code a escutar notificações do canal.
+Pronto — o plugin está instalado. Ele ainda não está ativo em nenhum canal; isso é o próximo passo.
 
 ---
 
-## Passo 4 — Pareie seu Telegram
+### Passo 3 — Configurar um canal para seu projeto
 
-**4.1 — Mande qualquer mensagem para o seu bot no Telegram.**
+Um "canal" no Forge é a ligação entre **um projeto** e **um bot do Telegram**. Você precisa configurar um canal para cada projeto que quiser usar com o Forge.
 
-O bot responde com um código de 6 caracteres:
+1. No terminal, entre na pasta do seu projeto:
+
+   ```bash
+   cd ~/meus-projetos/backend
+   ```
+
+2. Abra o Claude Code:
+
+   ```bash
+   claude
+   ```
+
+3. Dentro do Claude Code, rode:
+
+   ```
+   /forge:configure backend 7391204856:AAHfiqksKZ8WBjkL9mXn2pQ3rVtYwUeE1Fg
+   ```
+
+   - O primeiro argumento (`backend`) é o **nome do canal** — use algo descritivo, que faça sentido para você. Exemplos: `api`, `frontend`, `mobile`, `site-loja`.
+   - O segundo é o **token** que o BotFather te deu no Passo 1.
+
+O Forge então:
+
+- Salva o token num arquivo seguro em `~/.claude/channels/backend/.env` (só você tem acesso — `chmod 600`).
+- Cria um arquivo `.claude/forge-channel` no seu projeto apontando para esse canal.
+- Gera um script `forge` no seu shell que você vai usar para abrir o Claude Code com o canal ligado.
+
+4. **Feche o terminal e abra de novo** (isso faz o shell carregar o novo script `forge`).
+
+5. Volte para a pasta do projeto e rode:
+
+   ```bash
+   forge backend
+   ```
+
+   Esse é o comando que você vai usar daqui pra frente para abrir o Claude Code com o canal do Telegram conectado.
+
+---
+
+### Passo 4 — Parear seu Telegram (autorizar seu número)
+
+Por segurança, o bot não aceita mensagens de qualquer um. Você precisa provar que é o dono — isso se chama **pareamento**.
+
+**4.1 — No Telegram, mande qualquer mensagem para o seu bot.**
+
+Pode ser só "oi". Ele responde com:
 
 ```
 Pareamento necessário — execute no Claude Code:
@@ -101,41 +211,41 @@ Pareamento necessário — execute no Claude Code:
 /forge:access backend pair a3f9c2
 ```
 
-**4.2 — Aprove no Claude Code:**
+**4.2 — Copie esse comando e rode no Claude Code:**
 
 ```
 /forge:access backend pair a3f9c2
 ```
 
-O bot confirma no Telegram:
+**4.3 — Alguns segundos depois, o bot confirma no Telegram:**
 
 ```
 Pareado! Pode mandar suas tarefas.
 ```
 
-**4.3 — Trave o acesso (recomendado):**
+Pronto — seu Telegram está autorizado. Só você pode mandar tarefas para esse bot.
 
-```
-/forge:access backend policy allowlist
-```
+> 🔒 **Recomendação de segurança:** depois de parear, rode também:
+>
+> ```
+> /forge:access backend policy allowlist
+> ```
+>
+> Isso "tranca" o canal: ninguém mais consegue se parear por conta própria. Você ainda pode adicionar outras pessoas manualmente depois se quiser (veja [Gerenciando o acesso](#-gerenciando-o-acesso)).
 
 ---
 
-## Passo 5 — Mande sua primeira tarefa
+### Passo 5 — Mandar sua primeira tarefa
 
-Com tudo configurado, mande uma mensagem de texto para o bot. Exemplos:
+Com tudo configurado, agora é só usar. Mande uma mensagem de texto normal para o seu bot. Exemplos:
 
-```
-cria um arquivo utils/formatDate.ts que exporta uma função
-formatDate(date: Date): string retornando no formato DD/MM/YYYY
-```
+> "Cria um arquivo `utils/formatDate.ts` que exporta uma função `formatDate(date: Date): string` retornando o formato `DD/MM/YYYY`."
 
-```
-no módulo de usuários, adiciona um campo "apelido" opcional
-no schema. Não precisa de migração agora, só o tipo e a validação.
-```
+> "No módulo de usuários, adiciona um campo `apelido` opcional no schema. Não precisa de migração agora, só o tipo e a validação."
 
-O bot reage com 👀 ao receber. Quando o trabalho terminar, você recebe:
+> "Aquele bug onde a listagem dá erro quando o filtro vem vazio — corrige isso."
+
+O bot reage com 👀 quando recebe. Enquanto trabalha, você pode continuar sua vida. Quando termina, chega:
 
 ```
 ✅ Feito!
@@ -144,43 +254,42 @@ Criei utils/formatDate.ts com a função formatDate().
 Commit: feat: add formatDate utility (abc1234f)
 ```
 
+Se o Product Owner tiver alguma dúvida crítica (ex.: você pediu "valida o CPF" mas não especificou se aceita pontos/traços), ele pergunta pelo próprio Telegram e espera sua resposta antes de seguir.
+
 ---
 
-## Múltiplos projetos
+## 🗂 Trabalhando com vários projetos
 
-Crie um bot diferente para cada projeto e rode `/forge:configure <nome> <token>` **dentro da pasta de cada um**:
-
-```
-~/code/backend $   /forge:configure backend  7391204856:AAH...
-~/code/frontend $  /forge:configure frontend 8802315967:BBH...
-~/code/mobile $    /forge:configure mobile   9913426078:CCH...
-```
-
-Cada repo fica com seu próprio `.claude/forge-channel` apontando pro canal daquele projeto. Basta abrir o Claude Code no diretório do projeto com o flag:
+O Forge foi pensado para **um bot por projeto**. Você cria um bot diferente no BotFather para cada projeto, e roda `/forge:configure` **dentro da pasta de cada um**:
 
 ```bash
-claude --channels plugin:forge@forge
+cd ~/code/backend   && claude   # depois: /forge:configure backend  7391...
+cd ~/code/frontend  && claude   # depois: /forge:configure frontend 8802...
+cd ~/code/mobile    && claude   # depois: /forge:configure mobile   9913...
 ```
 
-Para ver o estado de todos os canais:
+Depois, para trabalhar em cada um, basta entrar na pasta e rodar `forge <nome-do-canal>`:
+
+```bash
+cd ~/code/frontend
+forge frontend
+```
+
+Quer ver todos os canais que você configurou?
 
 ```
 /forge:configure
 ```
 
-Para gerenciar o acesso do canal pinado no projeto atual (ou de outro, especificando o nome):
-
-```
-/forge:access                          — visão geral
-/forge:access pair x9k2m1              — pareia no canal pinado aqui
-/forge:access frontend policy allowlist
-```
-
 ---
 
-## O CLAUDE.md
+## 📝 O arquivo `CLAUDE.md` — o mapa do seu projeto
 
-O `CLAUDE.md` na raiz do seu projeto descreve a stack, convenções e arquitetura. **O Forge lê esse arquivo antes de planejar e implementar qualquer coisa.** Sem ele o Forge ainda funciona, mas pode gerar inconsistências.
+O **CLAUDE.md** é um arquivo que fica na raiz do seu projeto e descreve para a IA qual é a stack, as convenções, e o que **não** fazer. O Forge lê esse arquivo antes de planejar e implementar qualquer coisa, então quanto melhor ele for, melhor o resultado.
+
+Sem `CLAUDE.md` o Forge ainda funciona, mas pode gerar código que não combina com o resto do projeto (usar a lib errada, quebrar um padrão).
+
+Exemplo simples:
 
 ```markdown
 # Meu Projeto
@@ -189,111 +298,236 @@ O `CLAUDE.md` na raiz do seu projeto descreve a stack, convenções e arquitetur
 
 - Backend: NestJS + TypeScript + PostgreSQL
 - ORM: TypeORM com migrations
+- Testes: Jest
 
 ## Convenções
 
-- Controllers em src/modules/<nome>/<nome>.controller.ts
-- Commits: Conventional Commits (feat, fix, refactor, chore)
+- Controllers ficam em `src/modules/<nome>/<nome>.controller.ts`
+- Commits seguem Conventional Commits (`feat:`, `fix:`, `refactor:`, `chore:`)
+- Sem uso de `any` em TypeScript — prefira `unknown` quando necessário
 
-## Não fazer
+## O que NÃO fazer
 
-- Não usar `any` no TypeScript
+- Não gerar migrations automaticamente — eu faço manualmente
+- Não usar `console.log` em código de produção (use o logger do projeto)
 ```
 
-Para criar um CLAUDE.md automaticamente: `/init`
-
----
-
-## Gerenciamento de acesso
+Para gerar um `CLAUDE.md` automaticamente com base no seu projeto, use o comando do Claude Code:
 
 ```
-/forge:access                          — visão geral de todos os canais
-/forge:access <canal>                  — status detalhado do canal
-/forge:access <canal> pair <código>    — aprovar pareamento
-/forge:access <canal> deny <código>    — rejeitar pareamento
-/forge:access <canal> allow <id>       — adicionar por ID do Telegram
-/forge:access <canal> remove <id>      — remover
-/forge:access <canal> policy pairing   — abrir para novos pairings
-/forge:access <canal> policy allowlist — travar (só allowlist)
-/forge:access <canal> policy disabled  — desabilitar completamente
+/init
 ```
 
 ---
 
-## Comandos do bot
+## ⚡ Modo `edit` vs `ask` — controle de autonomia
 
-| Comando   | O que faz                 |
-| --------- | ------------------------- |
-| `/start`  | Instruções de pareamento  |
-| `/help`   | O que o bot faz           |
-| `/status` | Verificar se está pareado |
+Por padrão, o Claude Code pergunta antes de editar arquivos, rodar comandos destrutivos, etc. Isso pode ficar cansativo quando você está fora (cada permissão precisa ser respondida pelo celular).
+
+O Forge tem dois modos:
+
+- **`ask`** (padrão) — Claude pergunta cada permissão via Telegram (botão ✅/❌). Mais seguro.
+- **`edit`** — Claude edita/cria arquivos livremente sem perguntar. Mais ágil, exige confiança.
+
+Para trocar o modo, mande para o bot:
+
+```
+/mode edit
+```
+
+ou
+
+```
+/mode ask
+```
+
+> ⚠️ **Importante:** o modo só entra em vigor na **próxima sessão** (próxima vez que você rodar `forge <canal>`). A sessão atual continua no modo antigo.
 
 ---
 
-## Solução de problemas
+## 🔐 Gerenciando o acesso
 
-**O bot não responde às minhas mensagens**
+Você controla quem pode mandar tarefas ao seu bot via skill `/forge:access`.
 
-Verifique se o plugin está habilitado: `/plugins` no Claude Code. O status deve ser `Enabled`. Verifique também se o canal está registrado: `/forge:configure`.
+| Comando                                        | O que faz                                                    |
+| ---------------------------------------------- | ------------------------------------------------------------ |
+| `/forge:access`                                | Mostra visão geral de todos os canais                        |
+| `/forge:access <canal>`                        | Mostra detalhes (políticas, pareados, pendentes) de um canal |
+| `/forge:access <canal> pair <código>`          | Aprova um pareamento pendente                                |
+| `/forge:access <canal> deny <código>`          | Rejeita um pareamento pendente                               |
+| `/forge:access <canal> allow <id-telegram>`    | Adiciona alguém pelo ID do Telegram                          |
+| `/forge:access <canal> remove <id-telegram>`   | Remove alguém da allowlist                                   |
+| `/forge:access <canal> policy pairing`         | Aceita pareamentos novos (modo padrão)                       |
+| `/forge:access <canal> policy allowlist`       | "Tranca" — só quem já está na lista pode mandar              |
+| `/forge:access <canal> policy disabled`        | Desliga o canal completamente                                |
 
-**"chat X não está na allowlist"**
+### Regra de ouro de segurança
 
-A política está em `allowlist` mas o ID não foi adicionado. Execute `/forge:access <canal> policy pairing`, peça para a pessoa mandar DM ao bot, aprove com `/forge:access <canal> pair <código>`, e volte para `allowlist`.
+A aprovação de pareamentos **só pode** vir de você no terminal (Claude Code). O bot **nunca** aceita comandos de autorização vindos do Telegram — isso seria uma brecha enorme (alguém que invadisse o bot poderia se auto-adicionar).
 
-**409 Conflict no log**
+---
 
-Uma sessão anterior não encerrou. O Forge resolve automaticamente na maioria dos casos. Se persistir:
+## 💬 Comandos do bot (dentro do Telegram)
 
-```bash
-pkill -f "bun server.ts"
-```
+| Comando   | O que faz                                                                    |
+| --------- | ---------------------------------------------------------------------------- |
+| `/start`  | Mostra instruções de como se parear                                          |
+| `/help`   | Explica o que o bot faz (pipeline dos 4 agentes)                             |
+| `/status` | Mostra se você está pareado ou pendente                                      |
+| `/mode`   | Troca entre `edit` (autônomo) e `ask` (pergunta antes) — só para já pareados |
 
-**Quero desfazer o que o Forge fez**
+---
+
+## ❓ Perguntas frequentes
+
+**Posso usar o mesmo bot em vários projetos?**
+Tecnicamente sim, mas não recomendo. Fica confuso porque todas as mensagens misturam em uma conversa só. Crie um bot para cada projeto.
+
+**Preciso deixar o computador ligado?**
+Sim — o Forge roda localmente na sua máquina. Se desligar o PC, o bot para de responder. Para soluções "24/7" você precisaria rodar numa VPS, o que foge do escopo desse README.
+
+**Meu código vai para a nuvem da Anthropic?**
+Apenas o que o Claude precisa para trabalhar (arquivos que ele lê para entender o contexto, diffs que ele gera). Não é um sync do repo inteiro. Veja a [política de privacidade da Anthropic](https://www.anthropic.com/privacy) para detalhes.
+
+**E se o Claude fizer besteira no meu código?**
+Todo trabalho do Forge termina com um `git commit`. Se ficou ruim, é só reverter:
 
 ```bash
 git revert HEAD
 ```
 
+Em modo `ask` você aprova cada ação antes. Em modo `edit` ele roda mais livre — por isso é bom começar com `ask` até ganhar confiança.
+
+**Posso desativar temporariamente?**
+Sim: `/forge:access <canal> policy disabled` trava o canal até você reativar. Para religar: `/forge:access <canal> policy allowlist`.
+
+**O Forge funciona com grupos do Telegram?**
+Funciona — você pode configurar grupos específicos via `/forge:access`. Útil para times. Por padrão, o bot só responde em DMs.
+
 ---
 
-## Estrutura do plugin
+## 🛠 Quando algo dá errado
+
+### O bot não responde às minhas mensagens
+
+1. O canal está registrado? Rode `/forge:configure` e veja se aparece.
+2. O plugin está ativo? Rode `/plugins` e verifique se Forge aparece como `Enabled`.
+3. Você abriu o Claude Code com `forge <canal>`? Sem isso, o bot não está escutando.
+4. Você está pareado? Mande `/status` para o bot no Telegram.
+
+### "chat X não está na allowlist"
+
+A política do canal está `allowlist` e seu Telegram ID não foi adicionado. Solução:
+
+```
+/forge:access <canal> policy pairing    # volta a aceitar pareamentos
+```
+
+Depois mande uma mensagem ao bot, copie o código, aprove com `/forge:access <canal> pair <código>` e finalmente:
+
+```
+/forge:access <canal> policy allowlist  # trava de novo
+```
+
+### "409 Conflict" nos logs
+
+Alguma sessão anterior não encerrou corretamente e está segurando o canal. O Forge geralmente resolve sozinho. Se persistir:
+
+```bash
+pkill -f "bun server.ts"
+```
+
+Aí rode `forge <canal>` de novo.
+
+### Quero desfazer o último commit que o Forge fez
+
+```bash
+git revert HEAD
+```
+
+Cria um novo commit desfazendo o anterior (mantém histórico). Se preferir apagar mesmo (não recomendado se já deu push):
+
+```bash
+git reset --hard HEAD~1
+```
+
+---
+
+## 🏛 Entendendo a arquitetura (para curiosos e devs)
+
+### Estrutura do plugin
 
 ```
 forge/
-├── server.ts              ← MCP server: ponte Telegram ↔ Claude Code
-├── package.json
-├── agents/
-│   ├── po.md              ← instruções do Product Owner
-│   ├── tech-lead.md       ← instruções do Tech Lead
-│   ├── developer.md       ← instruções do Developer
-│   └── qa.md              ← instruções do QA Engineer
-└── skills/
-    ├── configure/          ← /forge:configure
-    └── access/             ← /forge:access
+├── server.ts                 ← entrypoint (shim que importa src/index.ts)
+├── src/
+│   ├── index.ts              ← bootstrap
+│   ├── app.ts                ← ForgeApp — composition root (cria tudo)
+│   ├── core/                 ← tipos, config, constantes, versão
+│   ├── access/               ← controle de acesso, pairing, modo
+│   ├── telegram/             ← bot grammy + handlers (commands, callbacks, messages/)
+│   │   └── handlers/messages/
+│   │       ├── pipeline.ts   ← núcleo comum (gate → permissão → notificar MCP)
+│   │       ├── text.ts       ← handler de texto
+│   │       ├── photo.ts      ← handler de foto (+ download)
+│   │       ├── document.ts   ← handler de documento
+│   │       └── voice.ts      ← handler de voz (rejeita)
+│   ├── mcp/                  ← servidor MCP + 4 tools (reply, react, edit, download)
+│   └── lifecycle/            ← shutdown + watchdog de processo órfão
+├── agents/                   ← instruções de PO, TL, Dev, QA (markdown editável)
+├── skills/                   ← /forge:configure, /forge:access (interface no Claude)
+└── docs/diagrams/            ← PlantUML com a arquitetura em detalhe
 ```
 
-Os arquivos em `agents/` definem o comportamento de cada papel. Edite-os para ajustar ao contexto do seu projeto.
+### Estado em disco
+
+**Global (por canal):**
+
+```
+~/.claude/channels/<nome>/
+  .env              ← FORGE_BOT_TOKEN (chmod 600)
+  access.json       ← allowlist, política, códigos pendentes
+  mode              ← 'edit' ou 'ask'
+  bot.pid           ← PID do poller atual (evita 409 Conflict)
+  approved/         ← marcadores efêmeros de pareamento aprovado
+  inbox/            ← fotos/documentos baixados do Telegram
+```
+
+**Por projeto:**
+
+```
+<seu-repo>/.claude/forge-channel    ← nome do canal deste projeto
+```
+
+### Tecnologias
+
+- **Bun** — runtime JS/TS rápido, executa `.ts` direto sem compilação.
+- **grammy** — biblioteca para Telegram Bot API (TypeScript).
+- **@modelcontextprotocol/sdk** — SDK do protocolo MCP (a "linguagem" que o Claude Code usa para conversar com plugins externos).
+- **Zod** — validação de schemas de entrada das tools MCP.
+
+### Diagramas detalhados
+
+Os diagramas em [`docs/diagrams/`](docs/diagrams/) mostram a arquitetura, fluxo dos 4 agentes, fluxo de pareamento e máquina de estados do gating de mensagens. Renderizam com qualquer ferramenta PlantUML.
+
+### Versionamento
+
+A versão é mantida sincronizada entre `package.json`, `.claude-plugin/plugin.json` e o `MCP server` (runtime). Para bumpar:
+
+```bash
+bun run bump 1.4.0
+```
 
 ---
 
-## Estado em disco
+## 📜 Licença
 
-Global (por canal):
+Apache-2.0 — veja o arquivo `LICENSE`.
 
-```
-~/.claude/channels/
-  <nome>/
-    .env          ← FORGE_BOT_TOKEN (chmod 600)
-    access.json   ← allowlist, política, pendentes
-    approved/     ← notificações de aprovação (efêmero)
-    inbox/        ← fotos e documentos recebidos (efêmero)
-    bot.pid       ← PID do poller atual
-```
+## 🤝 Contribuindo
 
-Por projeto:
+Issues e PRs são bem-vindos. Antes de mandar código novo:
 
-```
-<repo>/.claude/forge-channel    ← nome do canal pinado neste projeto
-```
-
-O servidor MCP é declarado pelo próprio plugin em `.mcp.json` — nada é registrado manualmente via `claude mcp add`. Ao iniciar, o servidor lê `.claude/forge-channel` no cwd, resolve o `~/.claude/channels/<nome>/` correspondente e sobe o bot.
+1. Rode `bun run typecheck` — deve passar sem erro.
+2. Teste o fluxo completo (pairing + mandar uma tarefa).
+3. Se mudar a arquitetura, atualize os diagramas em `docs/diagrams/`.

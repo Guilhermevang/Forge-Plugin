@@ -1,0 +1,63 @@
+@startuml 03-state-gating
+title Forge — Máquina de estados do gating de mensagens
+
+skinparam shadowing false
+
+[*] --> Recebida
+
+state Recebida
+Recebida --> AvaliaContexto : gate()
+
+state AvaliaContexto <<choice>>
+AvaliaContexto --> AvaliaPolicyDM : chat é DM
+AvaliaContexto --> AvaliaGrupo : chat é grupo
+AvaliaContexto --> Descartada : outro tipo de chat
+
+state AvaliaPolicyDM <<choice>>
+AvaliaPolicyDM --> Descartada : policy = disabled
+AvaliaPolicyDM --> AvaliaAllow : policy = allowlist
+AvaliaPolicyDM --> AvaliaPairing : policy = pairing
+
+state AvaliaAllow <<choice>>
+AvaliaAllow --> Entregue : sender ∈ allowFrom
+AvaliaAllow --> Descartada : não permitido
+
+state AvaliaPairing <<choice>>
+AvaliaPairing --> Entregue : sender ∈ allowFrom
+AvaliaPairing --> GerarCodigo : não autorizado
+
+state AvaliaGrupo <<choice>>
+AvaliaGrupo --> Descartada : grupo não registrado
+AvaliaGrupo --> AvaliaMention : grupo permitido
+
+state AvaliaMention <<choice>>
+AvaliaMention --> Entregue : requireMention = false\nou bot mencionado
+AvaliaMention --> Descartada : requireMention = true\ne sem menção
+
+state GerarCodigo
+GerarCodigo : cria código hex (TTL 1h)
+GerarCodigo : grava em pending{}
+GerarCodigo --> InstrucoesPair : responde no TG
+
+state InstrucoesPair
+InstrucoesPair --> AguardaAprovacao
+
+state AguardaAprovacao
+AguardaAprovacao : operador roda\n/forge:access pair <code>
+AguardaAprovacao --> Autorizado : skill move p/ allowFrom\ne cria marker em approved/
+AguardaAprovacao --> Descartada : TTL expira
+
+state Autorizado
+Autorizado : watcher approved/\nenvia "Pareado!"
+Autorizado --> [*]
+
+state Entregue
+Entregue : sendChatAction(typing)
+Entregue : ackReaction (se configurado)
+Entregue : notifications/claude/channel
+Entregue --> [*]
+
+state Descartada
+Descartada --> [*]
+
+@enduml

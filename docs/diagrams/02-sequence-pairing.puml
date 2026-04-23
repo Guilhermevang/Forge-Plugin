@@ -1,24 +1,26 @@
-@startuml 04-sequence-pairing
+@startuml 02-sequence-pairing
 title Forge — Fluxo de Pairing (autorização de remetente)
 
 skinparam shadowing false
+skinparam sequenceMessageAlign center
 
 actor "Remetente\n(Telegram)" as U
 actor "Operador\n(terminal)" as Ops
 participant "Bot" as TG
-participant "server.ts" as S
+participant "Forge MCP\n(server.ts)" as S
 database "access.json" as A
-folder "approved/" as App
-participant "Skill\n/forge:access" as Skill
+collections "approved/\n(markers)" as App
+participant "/forge:access\n(skill no Claude)" as Skill
 
 U -> TG : primeira mensagem
 TG -> S : update
-S -> A : lê dmPolicy e allowFrom
+S -> A : lê dmPolicy + allowFrom
+
 alt policy = "pairing" e remetente não autorizado
-    S -> S : gera código hex (6 chars, TTL 1h)
-    S -> A : salva em pending{ code → senderId }
-    S -> TG : responde instrução:\n"Rode /forge:access <canal> pair <code>"
-    TG -> U : exibe mensagem
+    S -> S : gera código hex 6 chars\n(TTL 1h)
+    S -> A : pending[code] = { senderId, ... }
+    S -> TG : "Rode no Claude Code:\n/forge:access <canal> pair <code>"
+    TG -> U : exibe instrução
 
     Ops -> Skill : /forge:access <canal> pair <code>
     Skill -> A : move pending → allowFrom
@@ -28,19 +30,20 @@ alt policy = "pairing" e remetente não autorizado
         S -> App : varre diretório
     end
     S -> App : encontra marker → remove
-    S -> TG : sendMessage("Pareado! Pode mandar sua tarefa.")
+    S -> TG : sendMessage("Pareado!\nPode mandar suas tarefas.")
     TG -> U : notificação
 
 else policy = "allowlist" e autorizado
-    S -> S : handleInbound (fluxo normal)
+    S -> S : prossegue (fluxo normal)
+
 else policy = "disabled" ou bloqueado
     S -> S : drop silencioso
 end
 
-note over S,Skill
+note over S, Skill
   Regra de segurança: aprovação **só**
   pelo operador no terminal.
-  Nunca via Telegram (risco de injeção).
+  Nunca via Telegram (vetor de injeção).
 end note
 
 @enduml

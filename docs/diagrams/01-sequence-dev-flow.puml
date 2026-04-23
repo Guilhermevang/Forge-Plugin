@@ -1,0 +1,71 @@
+@startuml 01-sequence-dev-flow
+title Forge — Pipeline dos 4 agentes (tarefa de desenvolvimento)
+
+skinparam shadowing false
+skinparam sequenceMessageAlign center
+
+actor "Usuário" as U
+participant "Telegram\nBot" as TG
+participant "Forge MCP\n(server.ts)" as S
+participant "Claude Code\nKernel" as K
+participant "Product\nOwner" as PO
+participant "Tech\nLead" as TL
+participant "Developer" as Dev
+participant "QA\nEngineer" as QA
+database "Repo\n(git)" as Git
+
+U -> TG : "Implementar endpoint /login"
+TG -> S : update (long polling)
+
+S -> S : gate() — verifica allowlist/policy
+S -> TG : setMessageReaction (ack)
+S -> TG : sendChatAction("typing")
+S -> K : notifications/claude/channel\n{content, meta}
+
+== Product Owner ==
+
+K -> PO : spawn(po.md + tarefa)
+PO -> PO : gera Requirements Doc\n(objetivo, critérios de aceite)
+
+alt ambiguidade crítica
+    PO --> K : pergunta ao usuário
+    K -> S : forge_reply(chat_id, pergunta)
+    S -> TG : sendMessage (reply_to)
+    U -> TG : resposta
+    TG -> S : update
+    S -> K : notifications/claude/channel
+    K -> PO : continuação
+end
+PO --> K : Requirements Doc
+
+== Tech Lead ==
+
+K -> TL : spawn(tech-lead.md + Req)
+TL -> Git : lê CLAUDE.md + estrutura
+TL --> K : Plano Técnico\n(arquivos, passos, riscos)
+
+== Developer ==
+
+K -> Dev : spawn(developer.md + Plano)
+Dev -> Git : cria / edita arquivos
+Dev -> Git : roda testes / typecheck
+Dev --> K : Relatório de Implementação
+
+== QA Engineer ==
+
+K -> QA : spawn(qa.md + Req + Plano + Relatório)
+QA -> Git : revisa diff, roda testes
+
+alt aprovado
+    QA -> Git : git add -A && git commit
+    QA --> K : ✅ aprovado + hash
+    K -> S : forge_reply("Pronto!\nCommit: <hash>")
+    S -> TG : sendMessage (chunked)
+    TG -> U : notificação
+else reprovado
+    QA --> K : lista de problemas
+    note right of K : loop QA → Dev até aprovar
+    K -> Dev : re-spawn com correções
+end
+
+@enduml
