@@ -23,10 +23,11 @@ Você não precisa estar na frente do computador. O Forge trabalha enquanto voc�
 6. [O arquivo CLAUDE.md](#-o-arquivo-claudemd-o-mapa-do-seu-projeto)
 7. [Modo edit vs ask](#-modo-edit-vs-ask-controle-de-autonomia)
 8. [Gerenciando o acesso](#-gerenciando-o-acesso)
-9. [Comandos do bot](#-comandos-do-bot-dentro-do-telegram)
-10. [Perguntas frequentes (FAQ)](#-perguntas-frequentes)
-11. [Quando algo dá errado](#-quando-algo-dá-errado)
-12. [Entendendo a arquitetura](#-entendendo-a-arquitetura-para-curiosos-e-devs)
+9. [Voz do Reporter (TTS)](#-voz-do-reporter-tts)
+10. [Comandos do bot](#-comandos-do-bot-dentro-do-telegram)
+11. [Perguntas frequentes (FAQ)](#-perguntas-frequentes)
+12. [Quando algo dá errado](#-quando-algo-dá-errado)
+13. [Entendendo a arquitetura](#-entendendo-a-arquitetura-para-curiosos-e-devs)
 
 ---
 
@@ -364,6 +365,83 @@ Você controla quem pode mandar tarefas ao seu bot via skill `/forge:access`.
 ### Regra de ouro de segurança
 
 A aprovação de pareamentos **só pode** vir de você no terminal (Claude Code). O bot **nunca** aceita comandos de autorização vindos do Telegram — isso seria uma brecha enorme (alguém que invadisse o bot poderia se auto-adicionar).
+
+---
+
+## 🔊 Voz do Reporter (TTS)
+
+No fim de cada tarefa, o Reporter pode mandar — além da mensagem de texto — um **áudio humanizado** resumindo o que foi feito. É opcional e configurável por canal. Gerenciado pela skill `/forge:voice`.
+
+### Engines disponíveis
+
+| Engine  | Qualidade | Rede      | Tamanho  | Quando usar                                            |
+| ------- | --------- | --------- | -------- | ------------------------------------------------------ |
+| `edge`  | Boa       | Online    | ~10 MB   | **Default.** Rápido, zero configuração, Azure Neural. |
+| `piper` | Muito boa | Offline   | ~60 MB/voz | Voz mais natural, roda em CPU local, sem API.       |
+| `none`  | —         | —         | —        | Desliga o áudio (só texto).                            |
+
+### Começo rápido
+
+Primeira coisa: ver o que está instalado e como cada canal está:
+
+```
+/forge:voice
+```
+
+Isso mostra: engines instaladas no host (edge-tts, piper, ffmpeg), vozes Piper baixadas, e a config de voz de cada canal.
+
+### Usar Edge (default, mais simples)
+
+```
+/forge:voice install edge      # instala a CLI edge-tts (via pipx)
+/forge:voice use edge          # ativa no canal pinado
+/forge:voice set voice pt-BR-ThalitaMultilingualNeural
+/forge:voice test              # smoke test — sintetiza "olá, teste"
+```
+
+Vozes pt-BR mais naturais no Edge: `pt-BR-ThalitaMultilingualNeural` (F), `pt-BR-AntonioNeural` (M), `pt-BR-FranciscaNeural` (F, default histórico).
+
+### Usar Piper (offline, mais natural)
+
+```
+/forge:voice install piper             # instala piper-tts + baixa voz default (pt_BR-faber-medium)
+/forge:voice use piper                 # ativa no canal pinado
+/forge:voice test
+```
+
+Pra trocar a voz do Piper:
+
+```
+/forge:voice list                      # mostra catálogo + vozes instaladas
+/forge:voice download pt_BR-cadu-medium
+/forge:voice set voice pt_BR-cadu-medium
+```
+
+**Extra (opcional):** instale `ffmpeg` (`sudo apt install ffmpeg`) e defina `FORGE_TTS_PIPER_FORMAT=ogg` no `.env` do canal pra mandar o áudio como voice note nativo do Telegram em vez de arquivo WAV.
+
+### Tabela de comandos
+
+| Comando                                              | O que faz                                                     |
+| ---------------------------------------------------- | ------------------------------------------------------------- |
+| `/forge:voice`                                       | Status geral: engines, vozes, config de cada canal            |
+| `/forge:voice install edge`                          | Instala a CLI `edge-tts` (Microsoft)                          |
+| `/forge:voice install piper`                         | Instala `piper-tts` + baixa a voz default pt-BR               |
+| `/forge:voice use edge`                              | Usa Edge no canal pinado                                      |
+| `/forge:voice use piper`                             | Usa Piper no canal pinado (valida instalação + modelo)        |
+| `/forge:voice use none`                              | Desliga áudio no canal (só texto)                             |
+| `/forge:voice set voice <nome>`                      | Define a voz do canal (ex: `pt-BR-AntonioNeural`, `pt_BR-faber-medium`) |
+| `/forge:voice list`                                  | Lista catálogo Piper + vozes Edge recomendadas + já instaladas |
+| `/forge:voice download <voz>`                        | Baixa um modelo Piper (HuggingFace)                           |
+| `/forge:voice remove <voz>`                          | Remove um modelo Piper do disco                               |
+| `/forge:voice test`                                  | Smoke test: sintetiza uma frase e valida o arquivo            |
+| `/forge:voice off` / `/forge:voice on`               | Desliga/liga o áudio no canal (atalho para `voiceReply`)      |
+| `/forge:voice <canal> <comando>`                     | Mesmos comandos acima num canal específico                    |
+
+### Como funciona por baixo dos panos
+
+- **Escopo global (env):** `FORGE_TTS_PROVIDER`, `FORGE_TTS_EDGE_VOICE`, `FORGE_TTS_PIPER_VOICE`, `FORGE_TTS_PIPER_MODELS_DIR`, `FORGE_TTS_PIPER_FORMAT`. Valem pra todos os canais do host.
+- **Escopo por canal (`~/.claude/channels/<nome>/access.json`):** campos `voiceProvider`, `voiceName`, `voiceReply`. Sobrescrevem o global. Relidos a cada mensagem — mudança tem efeito imediato sem reiniciar o `forge`.
+- **Modelos Piper:** ficam em `~/.local/share/piper-voices/` (cada voz = `<nome>.onnx` + `<nome>.onnx.json`). Baixados sob demanda pela skill.
 
 ---
 
