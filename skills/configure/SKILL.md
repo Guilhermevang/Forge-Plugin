@@ -12,6 +12,10 @@ allowed-tools:
   - Bash(rm *)
   - Bash(grep *)
   - Bash(test *)
+  - Bash(uname *)
+  - Bash(pwsh *)
+  - Bash(powershell *)
+  - Bash(cat *)
 ---
 
 # /forge:configure — Configuração de Canais Forge
@@ -53,11 +57,13 @@ Parse `$ARGUMENTS` (trim whitespace).
 5. `chmod 600 ~/.claude/channels/<nome>/.env`
 6. `mkdir -p ./.claude`
 7. Escreva `./.claude/forge-channel` com o conteúdo `<nome>` (sem newline final é ok — o servidor faz `.trim()`).
-8. **Instale a função `forge` no shell do usuário** (idempotente — não duplique se já existir):
-   - Detecte os rc files presentes: `~/.bashrc` e `~/.zshrc`. Se nenhum existir, use `~/.bashrc` como default.
-   - Para cada rc file existente (ou o default):
+8. **Instale a função/alias `forge` no shell do usuário** (idempotente — não duplique se já existir). Detecte o SO e trate conforme:
+
+   **Linux / macOS (bash, zsh):**
+   - Detecte os rc files presentes: `~/.bashrc`, `~/.bash_profile`, `~/.zshrc`. No macOS o shell default é zsh desde Catalina, mas mantenha ambos se existirem. Se nenhum existir, crie `~/.bashrc` no Linux e `~/.zshrc` no macOS.
+   - Para cada rc file alvo:
      - Leia o arquivo. Se já contiver a linha marcadora `# >>> forge launcher >>>`, pule (já instalado).
-     - Caso contrário, **append** o seguinte bloco ao final (use `Write` em append-mode via leitura + concat, ou `Edit` adicionando após a última linha):
+     - Caso contrário, **append** o bloco:
        ```bash
        # >>> forge launcher >>>
        # Lança o Claude Code com a flag necessária para plugins com claude/channel.
@@ -73,8 +79,35 @@ Parse `$ARGUMENTS` (trim whitespace).
        }
        # <<< forge launcher <<<
        ```
-   - Informe ao usuário quais arquivos foram atualizados e que ele precisa rodar `source ~/.bashrc` (ou reabrir o terminal) para o comando ficar disponível.
-9. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Use `forge <nome>` (ou só `forge` dentro do projeto) para iniciar o Claude Code com o Forge ativado. Reabra o terminal ou rode `source ~/.bashrc` (ou `~/.zshrc`) para o comando ficar disponível."*
+   - Mensagem ao usuário: *"Rode `source ~/.bashrc` (ou `~/.zshrc`) ou reabra o terminal."*
+
+   **Windows (PowerShell):**
+   - Resolva o caminho do profile executando `pwsh -NoProfile -Command '$PROFILE.CurrentUserAllHosts'` (ou `powershell` no Windows PowerShell 5.1). Se o diretório não existir, crie-o.
+   - Se o profile já contiver `# >>> forge launcher >>>`, pule.
+   - Caso contrário, append:
+     ```powershell
+     # >>> forge launcher >>>
+     # Lanca o Claude Code com a flag necessaria para plugins com claude/channel.
+     # Uso: forge <canal> [args extras para claude]
+     #      forge                      # usa o canal pinado no projeto atual
+     function forge {
+       if ($args.Count -gt 0 -and -not $args[0].ToString().StartsWith('-')) {
+         $env:FORGE_CHANNEL = $args[0]
+         if ($args.Count -gt 1) {
+           claude --dangerously-load-development-channels @($args[1..($args.Count-1)])
+         } else {
+           claude --dangerously-load-development-channels
+         }
+       } else {
+         claude --dangerously-load-development-channels @args
+       }
+     }
+     # <<< forge launcher <<<
+     ```
+   - Mensagem ao usuário: *"Reabra o PowerShell ou rode `. $PROFILE` para carregar o comando."*
+   - Se o usuário tiver Git Bash / WSL, trate-o como Linux (use o `.bashrc` correspondente).
+
+9. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Use `forge <nome>` (ou só `forge` dentro do projeto) para iniciar o Claude Code com o Forge ativado. Reabra o terminal ou recarregue o arquivo de profile para o comando ficar disponível."*
 10. Mostre o status do canal (token mascarado, política, permitidos).
 11. Conduza a conversa (seção abaixo).
 
