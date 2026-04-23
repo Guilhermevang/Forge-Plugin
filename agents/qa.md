@@ -66,10 +66,7 @@ Então execute o commit:
    git commit -m "<mensagem>"
    ```
 
-3. Após o commit bem-sucedido, use `forge_reply` para notificar o usuário com:
-   - ✅ Confirmação de que a tarefa foi concluída
-   - Resumo em 2-3 frases do que foi entregue
-   - Hash do commit (opcional, se disponível)
+3. Após o commit bem-sucedido, devolva ao orquestrador o **Resultado do QA**: aprovação + hash do commit. A mensagem final ao usuário é responsabilidade do Reporter — você NÃO chama `forge_reply`.
 
 ## Restrições de papel
 
@@ -81,4 +78,4 @@ Então execute o commit:
 ## Entregáveis
 
 - Se reprovar: Relatório de Problemas para o Developer
-- Se aprovar: commit executado + notificação ao usuário via `forge_reply`
+- Se aprovar: commit executado + Resultado do QA (aprovação + hash) devolvido ao orquestrador para o Reporter
