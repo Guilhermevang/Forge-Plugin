@@ -24,18 +24,18 @@ Argumentos recebidos: `$ARGUMENTS`
 
 Parse `$ARGUMENTS` (separado por espaços). O primeiro token determina o canal:
 
-- **Se o primeiro token for um comando conhecido** (`pair`, `deny`, `allow`, `remove`, `policy`, `group`, `set`) — o canal é inferido:
-  - Leia `~/.claude/settings.json`. Colete todas as chaves `mcpServers` começando com `forge-`.
-  - Se houver exatamente **um** canal, use-o como alvo.
-  - Se houver **mais de um**, informe o usuário quais canais existem e peça para especificar: `/forge:access <nome> <comando>`.
-  - Se **nenhum** canal estiver configurado, informe e oriente a usar `/forge:configure`.
+- **Se o primeiro token for um comando conhecido** (`pair`, `deny`, `allow`, `remove`, `policy`, `group`, `set`) — o canal é inferido nesta ordem:
+  1. Leia `./.claude/forge-channel` no cwd do projeto. Se existir, use esse canal.
+  2. Se não existir, liste `~/.claude/channels/` — se houver exatamente **um** subdiretório, use-o.
+  3. Se houver **mais de um** canal e nenhum pinado, peça para especificar: `/forge:access <nome> <comando>`.
+  4. Se **nenhum** canal existir, informe e oriente a usar `/forge:configure`.
 
 - **Se o primeiro token não for um comando conhecido** — trate-o como `<nome>` do canal. O restante dos argumentos é o comando.
 
 Exemplos de parsing:
-- `/forge:access` → status de todos os canais
+- `/forge:access` → status de todos os canais (globais)
 - `/forge:access backend` → status do canal `backend`
-- `/forge:access pair abc123` → par no único canal (erro se múltiplos)
+- `/forge:access pair abc123` → par no canal pinado do projeto (ou no único global)
 - `/forge:access backend pair abc123` → par no canal `backend`
 - `/forge:access frontend policy allowlist` → muda política do canal `frontend`
 
@@ -73,9 +73,10 @@ Após resolver o canal alvo, execute o subcomando:
 ### Sem subcomando — status
 
 **Se nenhum canal e nenhum comando foram fornecidos:**
-1. Leia `~/.claude/settings.json`. Colete todos os canais `forge-*`.
+1. Liste `~/.claude/channels/` — cada subdiretório é um canal.
 2. Para cada canal, leia seu `access.json`.
-3. Mostre uma visão geral: nome do canal, política, contagem de permitidos, contagem de pendentes.
+3. Leia `./.claude/forge-channel` para marcar qual é o pinado no projeto atual.
+4. Mostre uma visão geral: nome do canal, política, contagem de permitidos, contagem de pendentes, pinado aqui (sim/não).
 
 **Se um canal foi especificado:**
 1. Leia `~/.claude/channels/<nome>/access.json` (trate arquivo ausente).

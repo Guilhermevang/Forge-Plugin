@@ -24,7 +24,31 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, statSync, 
 import { homedir } from 'os'
 import { join, extname, sep } from 'path'
 
-const STATE_DIR = process.env.FORGE_STATE_DIR ?? join(homedir(), '.claude', 'channels', 'forge')
+function resolveChannel(): { name: string; stateDir: string } {
+  const channelsRoot = join(homedir(), '.claude', 'channels')
+
+  if (process.env.FORGE_STATE_DIR) {
+    const dir = process.env.FORGE_STATE_DIR
+    return { name: dir.split(sep).filter(Boolean).pop() ?? 'forge', stateDir: dir }
+  }
+
+  const envChannel = process.env.FORGE_CHANNEL?.trim()
+  if (envChannel) return { name: envChannel, stateDir: join(channelsRoot, envChannel) }
+
+  try {
+    const marker = readFileSync(join(process.cwd(), '.claude', 'forge-channel'), 'utf8').trim()
+    if (marker) return { name: marker, stateDir: join(channelsRoot, marker) }
+  } catch {}
+
+  process.stderr.write(
+    `forge channel: nenhum canal selecionado para ${process.cwd()}\n` +
+    `  execute /forge:configure <nome> <token> dentro do projeto\n` +
+    `  ou defina FORGE_CHANNEL=<nome>\n`,
+  )
+  process.exit(1)
+}
+
+const { name: CHANNEL_NAME, stateDir: STATE_DIR } = resolveChannel()
 const ACCESS_FILE = join(STATE_DIR, 'access.json')
 const APPROVED_DIR = join(STATE_DIR, 'approved')
 const ENV_FILE = join(STATE_DIR, '.env')
@@ -56,7 +80,7 @@ const PID_FILE = join(STATE_DIR, 'bot.pid')
 // Telegram só aceita um consumidor getUpdates por token. Mata qualquer poller
 // zumbi de sessões anteriores para evitar 409 Conflict.
 mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 })
-process.stderr.write(`forge channel: state dir = ${STATE_DIR}\n`)
+process.stderr.write(`forge channel: canal "${CHANNEL_NAME}" — state dir = ${STATE_DIR}\n`)
 try {
   const stale = parseInt(readFileSync(PID_FILE, 'utf8'), 10)
   if (stale > 1 && stale !== process.pid) {

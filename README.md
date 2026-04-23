@@ -67,7 +67,7 @@ O Claude Code vai listar o plugin Forge disponível para instalar. Habilite-o.
 
 ## Passo 3 — Configure o canal
 
-Execute no Claude Code, dentro da pasta do projeto:
+Execute no Claude Code, **dentro da pasta do projeto**:
 
 ```
 /forge:configure backend 7391204856:AAHfiqksKZ8WBjkL9mXn2pQ3rVtYwUeE1Fg
@@ -76,10 +76,16 @@ Execute no Claude Code, dentro da pasta do projeto:
 O `backend` é o nome do canal — use qualquer identificador que faça sentido para o projeto (`frontend`, `mobile`, `api`, etc.).
 
 O Forge:
-- Salva o token em `~/.claude/channels/backend/.env`
-- Registra o servidor MCP em `~/.claude/settings.json` automaticamente
+- Salva o token em `~/.claude/channels/backend/.env` (global por canal)
+- Pina esse canal no projeto atual gravando `.claude/forge-channel` na raiz do repo
 
-Reinicie o Claude Code para ativar o servidor.
+Saia da sessão e reabra com o flag `--channels`:
+
+```bash
+claude --channels plugin:forge@forge
+```
+
+O flag é o que autoriza o Claude Code a escutar notificações do canal.
 
 ---
 
@@ -142,26 +148,32 @@ Commit: feat: add formatDate utility (abc1234f)
 
 ## Múltiplos projetos
 
-Crie um bot diferente para cada projeto e configure cada um com um nome de canal único:
+Crie um bot diferente para cada projeto e rode `/forge:configure <nome> <token>` **dentro da pasta de cada um**:
 
 ```
-/forge:configure backend  7391204856:AAH...token-do-backend...
-/forge:configure frontend 8802315967:BBH...token-do-frontend...
-/forge:configure mobile   9913426078:CCH...token-do-mobile...
+~/code/backend $   /forge:configure backend  7391204856:AAH...
+~/code/frontend $  /forge:configure frontend 8802315967:BBH...
+~/code/mobile $    /forge:configure mobile   9913426078:CCH...
 ```
 
-Cada canal sobe automaticamente quando você abre o Claude Code — sem variáveis de ambiente, sem scripts extras. Para ver o estado de todos os canais:
+Cada repo fica com seu próprio `.claude/forge-channel` apontando pro canal daquele projeto. Basta abrir o Claude Code no diretório do projeto com o flag:
+
+```bash
+claude --channels plugin:forge@forge
+```
+
+Para ver o estado de todos os canais:
 
 ```
 /forge:configure
 ```
 
-Para gerenciar o acesso de um canal específico:
+Para gerenciar o acesso do canal pinado no projeto atual (ou de outro, especificando o nome):
 
 ```
-/forge:access backend
-/forge:access frontend pair x9k2m1
-/forge:access mobile policy allowlist
+/forge:access                          — visão geral
+/forge:access pair x9k2m1              — pareia no canal pinado aqui
+/forge:access frontend policy allowlist
 ```
 
 ---
@@ -266,6 +278,8 @@ Os arquivos em `agents/` definem o comportamento de cada papel. Edite-os para aj
 
 ## Estado em disco
 
+Global (por canal):
+
 ```
 ~/.claude/channels/
   <nome>/
@@ -276,15 +290,10 @@ Os arquivos em `agents/` definem o comportamento de cada papel. Edite-os para aj
     bot.pid       ← PID do poller atual
 ```
 
+Por projeto:
+
 ```
-~/.claude.json
-  mcpServers:
-    forge-<nome>:
-      type: stdio
-      command: bun
-      args: [<caminho-do-cache>/server.ts]
-      env:
-        FORGE_STATE_DIR: ~/.claude/channels/<nome>
+<repo>/.claude/forge-channel    ← nome do canal pinado neste projeto
 ```
 
-Registrado via `claude mcp add --scope user` pelo `/forge:configure`.
+O servidor MCP é declarado pelo próprio plugin em `.mcp.json` — nada é registrado manualmente via `claude mcp add`. Ao iniciar, o servidor lê `.claude/forge-channel` no cwd, resolve o `~/.claude/channels/<nome>/` correspondente e sobe o bot.
