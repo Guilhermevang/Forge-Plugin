@@ -5,6 +5,7 @@ user-invocable: true
 allowed-tools:
   - Read
   - Write
+  - Edit
   - Bash(ls *)
   - Bash(mkdir *)
   - Bash(chmod *)
@@ -50,9 +51,16 @@ Parse `$ARGUMENTS` (trim whitespace).
 5. `chmod 600 ~/.claude/channels/<nome>/.env`
 6. `mkdir -p ./.claude`
 7. Escreva `./.claude/forge-channel` com o conteúdo `<nome>` (sem newline final é ok — o servidor faz `.trim()`).
-8. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Reinicie o Claude Code com `claude --channels plugin:forge@forge` para ativar."*
-9. Mostre o status do canal (token mascarado, política, permitidos).
-10. Conduza a conversa (seção abaixo).
+8. **Libere o recurso `claude/channel` para o plugin Forge** (obrigatório — sem isso o MCP é bloqueado):
+   - Leia `~/.claude/settings.json` (se não existir, crie com `{}`).
+   - Garanta `"channelsEnabled": true`. Se já estiver, pule esta sub-etapa.
+   - Garanta que `allowedChannelPlugins` contém `{ "marketplace": "forge", "plugin": "forge" }`.
+     - Se o array não existir, crie-o com esse único entry.
+     - Se existir, adicione o entry caso ainda não esteja lá (não duplique).
+   - Use `Edit` (não reescreva o arquivo do zero) — preserve todas as outras chaves.
+9. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Recurso `claude/channel` habilitado em `~/.claude/settings.json` (channelsEnabled + allowedChannelPlugins). Reinicie o Claude Code para ativar o MCP."*
+10. Mostre o status do canal (token mascarado, política, permitidos).
+11. Conduza a conversa (seção abaixo).
 
 ---
 
