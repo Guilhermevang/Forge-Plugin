@@ -38,7 +38,7 @@ Parse `$ARGUMENTS` (trim whitespace).
 2. Para cada canal, leia seu `.env` (token, mascarado nos primeiros 10 chars) e `access.json` (política + contagem de permitidos).
 3. Exiba tabela: **Canal**, **Token**, **Política**, **Permitidos**.
 4. Se nenhum canal existir:
-   > *"Nenhum canal configurado. Execute `/forge:configure <nome> <token>` para criar o primeiro."*
+   > _"Nenhum canal configurado. Execute `/forge:configure <nome> <token>` para criar o primeiro."_
 5. Conduza a conversa (seção abaixo).
 
 ---
@@ -95,7 +95,7 @@ Parse `$ARGUMENTS` (trim whitespace).
        }
        # <<< forge launcher <<<
        ```
-   - Mensagem ao usuário: *"Rode `source ~/.bashrc` (ou `~/.zshrc`) ou reabra o terminal."*
+   - Mensagem ao usuário: _"Rode `source ~/.bashrc` (ou `~/.zshrc`) ou reabra o terminal."_
 
    **Windows (PowerShell):**
    - Resolva o caminho do profile executando `pwsh -NoProfile -Command '$PROFILE.CurrentUserAllHosts'` (ou `powershell` no Windows PowerShell 5.1). Se o diretório não existir, crie-o.
@@ -126,10 +126,10 @@ Parse `$ARGUMENTS` (trim whitespace).
      }
      # <<< forge launcher <<<
      ```
-   - Mensagem ao usuário: *"Reabra o PowerShell ou rode `. $PROFILE` para carregar o comando."*
+   - Mensagem ao usuário: _"Reabra o PowerShell ou rode `. $PROFILE` para carregar o comando."_
    - Se o usuário tiver Git Bash / WSL, trate-o como Linux (use o `.bashrc` correspondente).
 
-8. Confirme: *"Canal `<nome>` configurado. Use `forge <nome>` de qualquer diretório para abrir o Claude com o Forge. Reabra o terminal ou recarregue o profile para o comando ficar disponível."*
+8. Confirme: _"Canal `<nome>` configurado. Use `forge <nome>` de qualquer diretório para abrir o Claude com o Forge. Reabra o terminal ou recarregue o profile para o comando ficar disponível."_
 9. Mostre o status do canal (token mascarado, política, permitidos).
 10. Conduza a conversa (seção abaixo).
 
@@ -155,10 +155,10 @@ Parse `$ARGUMENTS` (trim whitespace).
 
 Após mostrar status:
 
-1. **Nenhum canal** → *"Execute `/forge:configure <nome> <token>` com o token do BotFather."*
-2. **Canal criado, política `pairing`, ninguém permitido** → *"Rode `forge <nome>` em outro terminal; mande DM pro bot no Telegram; ele responde com código. Aprove com `/forge:access pair <código>`."*
-3. **Canal criado, alguém permitido, política ainda `pairing`** → *"Travar acesso? `/forge:access policy allowlist`."*
-4. **Canal criado, política `allowlist`** → *"Pronto. Rode `forge <nome>` e mande tarefas pelo Telegram."*
+1. **Nenhum canal** → _"Execute `/forge:configure <nome> <token>` com o token do BotFather."_
+2. **Canal criado, política `pairing`, ninguém permitido** → _"Rode `forge <nome>` em outro terminal; mande DM pro bot no Telegram; ele responde com código. Aprove com `/forge:access pair <código>`."_
+3. **Canal criado, alguém permitido, política ainda `pairing`** → _"Travar acesso? `/forge:access policy allowlist`."_
+4. **Canal criado, política `allowlist`** → _"Pronto. Rode `forge <nome>` e mande tarefas pelo Telegram."_
 
 ---
 

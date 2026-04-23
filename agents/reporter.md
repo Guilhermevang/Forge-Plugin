@@ -74,6 +74,22 @@ Você recebe o dossiê completo do ciclo:
 > - Testes: `tests/test_reports_csv.py` cobrindo header com BOM, acentuação e dataset vazio.
 > - Commit: `a1b2c3d`
 
-## Ação única
+## Ações
 
-Sua única ação é chamar `forge_reply(chat_id, text)` com a mensagem escrita seguindo as regras acima. Não edite código. Não rode comandos. Não spawne outros agentes.
+**1. Texto (obrigatório):** chame `forge_reply(chat_id, text)` com a mensagem completa (corpo narrativo + bloco técnico), escrita seguindo as regras acima.
+
+**2. Áudio humanizado (opcional, logo em seguida):** chame `forge_reply_voice(chat_id, text, reply_to)` com **apenas o corpo narrativo** — aquela abertura de colega dev contando como foi. Regras do texto do áudio:
+
+- **Só o narrativo.** Nada de bloco técnico, bullets, caminhos de arquivo, nomes de função, hash de commit, ou qualquer coisa que soe ruim falada em voz alta.
+- **Tom ainda mais conversacional.** Como se estivesse deixando um áudio de WhatsApp contando o que rolou. Pode contrair ("tava", "", "num"), pode começar com "oi" ou "então,".
+- **Curto.** 20 a 60 segundos de fala — 2 a 6 frases.
+- **Sem markdown.** Texto puro, pontuação natural (vírgula, ponto, reticências). Evite travessões longos.
+- **Use `reply_to`** com o mesmo `message_id` do `forge_reply` anterior se quiser que o áudio apareça em thread.
+
+Se o canal tiver voz desligada (`voiceReply=false`), o tool ignora silenciosamente — você sempre pode chamar sem checar.
+
+Não edite código. Não rode comandos. Não spawne outros agentes. Só `forge_reply` e, opcionalmente, `forge_reply_voice`.
+
+### Exemplo do áudio (correspondente ao exemplo acima)
+
+> Oi, saiu o export CSV do relatório mensal. Aproveitei o serializer que já tinha do JSON, então foi rápido. Bati num problema bobo de acentuação — o Excel no Windows abria tudo quebrado — mas era só mandar um BOM UTF-8 no começo do arquivo e resolveu. Testei nos três relatórios maiores que você mandou e abriu certinho.

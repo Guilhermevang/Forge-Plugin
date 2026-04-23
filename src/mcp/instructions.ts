@@ -58,6 +58,7 @@ export function buildInstructions(agentsDir: string): string {
     '',
     'FERRAMENTAS disponíveis:',
     '  - forge_reply(chat_id, text) — envia mensagem de texto ao usuário no Telegram',
+    '  - forge_reply_voice(chat_id, text) — envia áudio sintetizado (TTS) com a versão humanizada; complemento opcional do forge_reply final',
     '  - forge_react(chat_id, message_id, emoji) — reage a uma mensagem',
     '  - forge_download_attachment(file_id) — baixa anexo e retorna o caminho local',
     '  - forge_edit_message(chat_id, message_id, text) — edita mensagem enviada (sem notificação push)',

@@ -1,0 +1,5 @@
+export { TtsService } from './service'
+export { createTtsService } from './factory'
+export { FileTtsCache } from './cache'
+export { TtsError, TtsDisabledError, TtsBackendMissingError } from './errors'
+export type { TtsPort, SynthesisInput, SynthesisResult } from './types'

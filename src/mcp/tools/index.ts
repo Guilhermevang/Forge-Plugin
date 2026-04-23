@@ -7,6 +7,8 @@ import { ReplyTool } from './reply'
 import { ReactTool } from './react'
 import { DownloadTool } from './download'
 import { EditTool } from './edit'
+import { ReplyVoiceTool } from './reply-voice'
+import type { TtsService } from '../../tts'
 import type { McpTool } from './deps'
 
 export type { McpTool } from './deps'
@@ -17,18 +19,20 @@ const STUB_METADATA: Array<{ name: string; description: string }> = [
   { name: ReactTool.NAME, description: ReactTool.DESCRIPTION },
   { name: DownloadTool.NAME, description: DownloadTool.DESCRIPTION },
   { name: EditTool.NAME, description: EditTool.DESCRIPTION },
+  { name: ReplyVoiceTool.NAME, description: ReplyVoiceTool.DESCRIPTION },
 ]
 
 // Registra todas as tools reais no McpServer. Uso em modo normal (canal + token OK).
 export class ToolRegistry {
   private readonly tools: McpTool[]
 
-  constructor(bot: Bot, config: Config, store: AccessStore) {
+  constructor(bot: Bot, config: Config, store: AccessStore, tts: TtsService) {
     this.tools = [
       new ReplyTool(bot, config, store),
       new ReactTool(bot, store),
       new DownloadTool(bot, config),
       new EditTool(bot, store),
+      new ReplyVoiceTool(bot, store, tts),
     ]
   }
 

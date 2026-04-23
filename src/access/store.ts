@@ -56,6 +56,8 @@ export class AccessStore {
         replyToMode: parsed.replyToMode,
         textChunkLimit: parsed.textChunkLimit,
         chunkMode: parsed.chunkMode,
+        voiceReply: parsed.voiceReply,
+        voiceName: parsed.voiceName,
       }
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return defaultAccess()

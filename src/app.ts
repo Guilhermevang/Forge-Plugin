@@ -8,6 +8,7 @@ import { TelegramHandlers } from './telegram/handlers'
 import { ToolRegistry } from './mcp/tools'
 import { PermissionBroker } from './mcp/permissions'
 import { ForgeMcpServer } from './mcp/server'
+import { createTtsService } from './tts'
 import { ShutdownManager } from './lifecycle/shutdown'
 import { OrphanWatchdog } from './lifecycle/watchdog'
 
@@ -45,7 +46,8 @@ export class ForgeApp {
     this.bot = new TelegramBot(this.config.token, () => this.shutdownManager.isShuttingDown)
     const store = new AccessStore(this.config)
     const modeStore = new ModeStore(this.config)
-    const registry = new ToolRegistry(this.bot.bot, this.config, store)
+    const tts = createTtsService(this.config)
+    const registry = new ToolRegistry(this.bot.bot, this.config, store, tts)
 
     this.mcpServer = new ForgeMcpServer({
       agentsDir,

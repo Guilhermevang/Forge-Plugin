@@ -21,6 +21,8 @@ export type Access = {
   replyToMode?: 'off' | 'first' | 'all'
   textChunkLimit?: number
   chunkMode?: 'length' | 'newline'
+  voiceReply?: boolean
+  voiceName?: string
 }
 
 export type ChannelMode = 'edit' | 'ask'
