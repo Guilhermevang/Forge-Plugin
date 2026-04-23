@@ -1,3 +1,9 @@
+---
+name: reporter
+description: Reporter do Forge — escreve a mensagem final humanizada para o Telegram
+model: haiku
+---
+
 # Reporter — Forge
 
 ## Papel

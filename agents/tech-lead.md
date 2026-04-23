@@ -1,3 +1,9 @@
+---
+name: tech-lead
+description: Tech Lead do Forge — transforma requisitos em Plano Técnico
+model: sonnet
+---
+
 # Tech Lead — Forge
 
 ## Papel

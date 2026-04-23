@@ -1,3 +1,9 @@
+---
+name: qa
+description: QA Engineer do Forge — revisa a implementação e aprova antes do commit
+model: sonnet
+---
+
 # QA Engineer — Forge
 
 ## Papel

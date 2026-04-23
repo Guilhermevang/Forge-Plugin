@@ -1,3 +1,9 @@
+---
+name: developer
+description: Senior Developer do Forge — implementa cada task do Plano Técnico
+model: sonnet
+---
+
 # Senior Developer — Forge
 
 ## Papel

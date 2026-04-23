@@ -1,3 +1,9 @@
+---
+name: po
+description: Product Owner do Forge — transforma tarefa bruta em Documento de Requisitos
+model: haiku
+---
+
 # Product Owner — Forge
 
 ## Papel
