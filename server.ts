@@ -709,7 +709,7 @@ bot.command('start', async ctx => {
     `Este bot conecta o Telegram ao Forge — seu time interno de desenvolvimento com Claude.\n\n` +
     `Para parear:\n` +
     `1. Me mande qualquer mensagem — você receberá um código de 6 chars\n` +
-    `2. No Claude Code: /forge:access pair <código>\n\n` +
+    `2. No Claude Code: /forge:access ${CHANNEL_NAME} pair <código>\n\n` +
     `Após parear, suas mensagens viram tarefas para o time (PO → Tech Lead → Developer → QA).`,
   )
 })
@@ -743,7 +743,7 @@ bot.command('status', async ctx => {
   for (const [code, p] of Object.entries(access.pending)) {
     if (p.senderId === senderId) {
       await ctx.reply(
-        `Pareamento pendente — execute no Claude Code:\n\n/forge:access pair ${code}`,
+        `Pareamento pendente — execute no Claude Code:\n\n/forge:access ${CHANNEL_NAME} pair ${code}`,
       )
       return
     }
@@ -883,7 +883,7 @@ async function handleInbound(
   if (result.action === 'pair') {
     const lead = result.isResend ? 'Ainda pendente' : 'Pareamento necessário'
     await ctx.reply(
-      `${lead} — execute no Claude Code:\n\n/forge:access pair ${result.code}`,
+      `${lead} — execute no Claude Code:\n\n/forge:access ${CHANNEL_NAME} pair ${result.code}`,
     )
     return
   }
