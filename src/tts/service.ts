@@ -1,42 +1,62 @@
 import { copyFileSync } from 'fs'
-import type { SynthesisInput, SynthesisResult, TtsPort } from './types'
+import type { SynthesisInput, SynthesisResult, TtsPort, TtsProvider } from './types'
+import { TtsError } from './errors'
 import type { FileTtsCache } from './cache'
 
-// Camada que combina um TtsPort com o cache em disco. É o que o tool MCP consome —
-// assim o adapter permanece puro (só sabe sintetizar) e o cache permanece isolado.
+// Camada que combina adapters com o cache em disco. Mantém um registry de adapters
+// por provider — assim `access.voiceProvider` pode sobrescrever o default em cada
+// chamada sem recriar adapters (Edge e Piper convivem em paralelo no mesmo processo).
 export class TtsService {
   constructor(
-    private readonly adapter: TtsPort,
+    private readonly adapters: Map<TtsProvider, TtsPort>,
+    private readonly defaultProvider: TtsProvider,
     private readonly cache: FileTtsCache,
   ) {}
 
   get defaultVoice(): string {
-    return this.adapter.defaultVoice
+    return this.defaultAdapter().defaultVoice
+  }
+
+  get activeProvider(): TtsProvider {
+    return this.defaultProvider
+  }
+
+  availableProviders(): TtsProvider[] {
+    return Array.from(this.adapters.keys())
   }
 
   async synthesize(input: SynthesisInput): Promise<SynthesisResult> {
-    const voice = input.voice ?? this.adapter.defaultVoice
+    const providerName = input.provider ?? this.defaultProvider
+    const adapter = this.adapters.get(providerName)
+    if (!adapter) {
+      throw new TtsError(
+        `provider TTS "${providerName}" não configurado. Disponíveis: ${this.availableProviders().join(', ') || '(nenhum)'}.`,
+      )
+    }
+
+    const voice = input.voice ?? adapter.defaultVoice
+    const extension = adapter.defaultExtension
     const key = this.cache.key({
+      provider: providerName,
       voice,
       rate: input.rate,
       pitch: input.pitch,
       volume: input.volume,
       text: input.text,
     })
-    const extension = '.mp3'
 
-    if (this.cache.has(key, extension)) {
+    if (extension && this.cache.has(key, extension)) {
       return {
         filePath: this.cache.path(key, extension),
-        mimeType: 'audio/mpeg',
+        mimeType: adapter.defaultMimeType,
         extension,
       }
     }
 
-    const fresh = await this.adapter.synthesize({ ...input, voice })
+    const fresh = await adapter.synthesize({ ...input, voice })
 
-    // Só cacheamos mp3 por enquanto — outros formatos seguem direto (sem promoção ao cache).
-    if (fresh.extension === extension) {
+    // Cacheia quando o adapter devolve a extensão default — outros casos seguem direto.
+    if (extension && fresh.extension === extension) {
       const cachedPath = this.cache.path(key, extension)
       try {
         copyFileSync(fresh.filePath, cachedPath)
@@ -47,5 +67,11 @@ export class TtsService {
       }
     }
     return fresh
+  }
+
+  private defaultAdapter(): TtsPort {
+    const a = this.adapters.get(this.defaultProvider)
+    if (!a) throw new TtsError(`default provider "${this.defaultProvider}" sem adapter registrado`)
+    return a
   }
 }

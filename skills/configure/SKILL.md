@@ -18,11 +18,6 @@ allowed-tools:
   - Bash(cat *)
   - Bash(command -v *)
   - Bash(which *)
-  - Bash(pipx *)
-  - Bash(pip *)
-  - Bash(pip3 *)
-  - Bash(python3 *)
-  - Bash(edge-tts *)
 ---
 
 # /forge:configure — Configuração de Canais Forge
@@ -46,10 +41,7 @@ Parse `$ARGUMENTS` (trim whitespace).
 3. Exiba tabela: **Canal**, **Token**, **Política**, **Permitidos**.
 4. Se nenhum canal existir:
    > _"Nenhum canal configurado. Execute `/forge:configure <nome> <token>` para criar o primeiro."_
-5. **Status do TTS:** rode `command -v edge-tts` e mostre uma linha:
-   - Se existe: _"🔊 TTS: Edge-TTS instalado (`<caminho>`)."_
-   - Se ausente: _"🔇 TTS: Edge-TTS não instalado. Rode a seção Setup do TTS pra ativar `forge_reply_voice`."_
-6. Conduza a conversa (seção abaixo).
+5. Conduza a conversa (seção abaixo). Para qualquer coisa relacionada a voz (engine, modelos Piper, ativar/desativar áudio), oriente `/forge:voice`.
 
 ---
 
@@ -141,7 +133,7 @@ Parse `$ARGUMENTS` (trim whitespace).
 
 8. Confirme: _"Canal `<nome>` configurado. Use `forge <nome>` de qualquer diretório para abrir o Claude com o Forge. Reabra o terminal ou recarregue o profile para o comando ficar disponível."_
 9. Mostre o status do canal (token mascarado, política, permitidos).
-10. **Verifique o TTS (Edge-TTS)** — rode a seção _"Setup do TTS"_ abaixo. É opcional; se pular, o `forge_reply_voice` falha silenciosamente (texto continua funcionando).
+10. **TTS (áudio do Reporter):** é opcional e gerenciado por uma skill dedicada. Informe: _"Pra configurar voz do Reporter (engine, vozes, ativar/desativar áudio), rode `/forge:voice`."_ Não instale nada aqui.
 11. Conduza a conversa (seção abaixo).
 
 ---
@@ -173,48 +165,9 @@ Após mostrar status:
 
 ---
 
-## Setup do TTS (Edge-TTS)
+## TTS (voz do Reporter)
 
-O Forge usa a CLI `edge-tts` (Python) para o tool `forge_reply_voice`. É **opcional** — se faltar, o Reporter ainda manda o texto; só o áudio falha.
-
-Execute esta seção sempre que:
-- Criar um canal novo (passo 10 do fluxo `<nome> <token>`).
-- O usuário rodar `/forge:configure` sem argumentos e o TTS estiver ausente.
-- O usuário pedir explicitamente "ativar áudio", "configurar tts", "instalar edge-tts".
-
-### Passos
-
-1. **Detecte se já está instalado:** rode `command -v edge-tts`. Se retornar um caminho, está OK — informe _"✅ Edge-TTS já instalado em `<caminho>`. `forge_reply_voice` disponível."_ e pule os passos seguintes.
-
-2. **Se ausente**, decida o instalador preferido nessa ordem:
-   - `command -v pipx` existe? → use `pipx` (recomendado — isolado, não polui o Python do sistema).
-   - senão, `command -v pip3` ou `command -v pip`? → fallback para `pip --user`.
-   - senão → explique: _"Nem `pipx` nem `pip` encontrados. Instale Python 3 + pipx (`sudo apt install pipx` ou equivalente) e rode `/forge:configure` de novo pra ativar o TTS."_ e pare.
-
-3. **Pergunte ao usuário** antes de instalar (a skill não instala sem confirmação):
-   > _"Pra habilitar áudio humanizado do Reporter no Telegram, preciso instalar a CLI `edge-tts` (Python, grátis, sem conta). Vou rodar `pipx install edge-tts` (ou `pip install --user edge-tts` se pipx não estiver disponível). Quer seguir? (s/n)"_
-
-4. **Se o usuário confirmar**, rode o comando detectado:
-   - pipx: `pipx install edge-tts`
-   - pip3: `pip3 install --user edge-tts`
-   - pip:  `pip install --user edge-tts`
-
-   Capture stdout+stderr. Se der erro, mostre o output e sugira a solução típica (PEP 668 "externally-managed-environment" → recomendar pipx; rede → conferir proxy).
-
-5. **Valide:** rode `command -v edge-tts` de novo. Se ainda não aparecer, avise que pode ser PATH (pipx usa `~/.local/bin`; sugerir `pipx ensurepath` ou reabrir o terminal).
-
-6. **Smoke test opcional** (só se o usuário topar): `edge-tts --voice pt-BR-FranciscaNeural --text "oi, teste" --write-media /tmp/forge-tts-test.mp3` e confirme que o arquivo ficou > 1 KB. Não abra player; só confirma que a síntese funciona.
-
-7. **Se o usuário recusar** a instalação, apenas registre: _"Sem problemas. O Forge funciona normal sem TTS; só o `forge_reply_voice` vai falhar com aviso. Pra ativar depois: `pipx install edge-tts`."_
-
-### Toggle por canal
-
-A presença do `edge-tts` no sistema é global. Pra **desligar áudio em um canal específico** (sem desinstalar), edite `access.json` do canal adicionando `"voiceReply": false`. Pra trocar a voz: `"voiceName": "pt-BR-AntonioNeural"`. Isso é manipulado pela skill `/forge:access`, não aqui.
-
-### Variáveis de ambiente (opcional, em `~/.claude/channels/<nome>/.env`)
-
-- `FORGE_TTS_PROVIDER=edge|none` — default `edge`. `none` desativa globalmente no canal.
-- `FORGE_TTS_VOICE=pt-BR-FranciscaNeural` — voz default. Override por canal via `access.voiceName`, override por chamada via argumento do tool.
+Gerenciado pela skill dedicada `/forge:voice` — engine (Edge / Piper / none), instalação de backends, download de modelos, overrides por canal, ativar/desativar áudio. Esta skill não toca nisso.
 
 ---
 

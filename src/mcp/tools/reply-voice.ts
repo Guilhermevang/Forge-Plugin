@@ -76,10 +76,12 @@ export class ReplyVoiceTool implements McpTool {
 
     // Precedência da voz: argumento do agente → override do canal → default do service.
     const voice = args.voice ?? access.voiceName ?? undefined
+    // Per-canal: access.voiceProvider escolhe a engine (edge|piper|none). Sem override → default do service.
+    const provider = access.voiceProvider
 
     let result
     try {
-      result = await this.tts.synthesize({ text, voice, rate: args.rate })
+      result = await this.tts.synthesize({ text, voice, rate: args.rate, provider })
     } catch (err) {
       const msg = err instanceof TtsError ? err.message : (err as Error).message
       throw new Error(`forge_reply_voice: falha ao sintetizar: ${msg}`)

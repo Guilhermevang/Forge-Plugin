@@ -17,6 +17,8 @@ export type EdgeTtsAdapterOptions = {
 // Output padrão: MP3 24kHz mono. Enviado via sendAudio (Telegram aceita MP3).
 export class EdgeTtsAdapter implements TtsPort {
   readonly defaultVoice: string
+  readonly defaultExtension = '.mp3'
+  readonly defaultMimeType = 'audio/mpeg'
   private readonly bin: string
   private readonly tempDir: string
   private backendChecked = false

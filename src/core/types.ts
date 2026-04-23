@@ -23,6 +23,7 @@ export type Access = {
   chunkMode?: 'length' | 'newline'
   voiceReply?: boolean
   voiceName?: string
+  voiceProvider?: 'edge' | 'piper' | 'none'
 }
 
 export type ChannelMode = 'edit' | 'ask'
