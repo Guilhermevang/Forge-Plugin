@@ -54,16 +54,27 @@ Parse `$ARGUMENTS` (trim whitespace).
 3. `mkdir -p ~/.claude/channels/<nome>`
 4. Leia `~/.claude/channels/<nome>/.env` se houver; atualize/adicione a linha `FORGE_BOT_TOKEN=<token>`, preservando outras chaves. Escreva sem aspas.
 5. `chmod 600 ~/.claude/channels/<nome>/.env`
-6. **Instale a função `forge` no shell do usuário** (idempotente — não duplique se já existir). Detecte o SO e trate conforme:
+6. **Registre as ferramentas do Forge no allowlist do Claude Code** (`~/.claude/settings.json`). Sem isso, cada chamada a `forge_reply`, `forge_react`, etc. abre um prompt de permissão que trava a entrega ao Telegram.
+   - Crie `~/.claude/settings.json` se não existir (conteúdo inicial: `{}`).
+   - Leia o arquivo como JSON. Se falhar no parse, **pare** e peça ao usuário para consertar manualmente (não sobrescreva).
+   - Garanta que `permissions.allow` seja um array. Adicione ao array (se ainda não presentes — idempotente) as 4 entradas:
+     - `mcp__forge__forge_reply`
+     - `mcp__forge__forge_react`
+     - `mcp__forge__forge_edit_message`
+     - `mcp__forge__forge_download_attachment`
+   - Preserve todas as outras chaves do settings.json intactas. Escreva com `JSON.stringify(obj, null, 2)`.
+7. **Instale a função `forge` no shell do usuário** (idempotente — atualiza se marcador antigo existir). Detecte o SO e trate conforme:
 
    **Linux / macOS (bash, zsh):**
    - Detecte os rc files presentes: `~/.bashrc`, `~/.bash_profile`, `~/.zshrc`. No macOS o shell default é zsh desde Catalina, mas mantenha ambos se existirem. Se nenhum existir, crie `~/.bashrc` no Linux e `~/.zshrc` no macOS.
    - Para cada rc file alvo:
-     - Leia o arquivo. Se já contiver a linha marcadora `# >>> forge launcher >>>`, pule (já instalado).
-     - Caso contrário, **append** o bloco:
+     - Leia o arquivo. Se contiver o marcador atual `# >>> forge launcher v2 >>>`, pule (já atualizado).
+     - Se contiver apenas o marcador antigo `# >>> forge launcher >>>` (sem `v2`), **remova o bloco inteiro entre `# >>> forge launcher >>>` e `# <<< forge launcher <<<`** e siga para o append abaixo.
+     - Append o bloco v2:
        ```bash
-       # >>> forge launcher >>>
+       # >>> forge launcher v2 >>>
        # Lança o Claude Code com o plugin Forge habilitado no canal informado.
+       # Lê ~/.claude/channels/<canal>/mode ("edit" => bypassPermissions).
        # Uso: forge <canal> [args extras para claude]
        forge() {
          if [ -z "$1" ] || [ "${1#-}" != "$1" ]; then
@@ -71,7 +82,16 @@ Parse `$ARGUMENTS` (trim whitespace).
            return 1
          fi
          local _forge_ch="$1"; shift
-         FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels plugin:forge@forge "$@"
+         local _forge_mode_file="$HOME/.claude/channels/$_forge_ch/mode"
+         local _forge_mode=""
+         if [ -r "$_forge_mode_file" ]; then
+           _forge_mode=$(tr -d '[:space:]' < "$_forge_mode_file")
+         fi
+         if [ "$_forge_mode" = "edit" ]; then
+           FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels plugin:forge@forge --permission-mode bypassPermissions "$@"
+         else
+           FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels plugin:forge@forge "$@"
+         fi
        }
        # <<< forge launcher <<<
        ```
@@ -79,22 +99,29 @@ Parse `$ARGUMENTS` (trim whitespace).
 
    **Windows (PowerShell):**
    - Resolva o caminho do profile executando `pwsh -NoProfile -Command '$PROFILE.CurrentUserAllHosts'` (ou `powershell` no Windows PowerShell 5.1). Se o diretório não existir, crie-o.
-   - Se o profile já contiver `# >>> forge launcher >>>`, pule.
-   - Caso contrário, append:
+   - Se o profile contiver `# >>> forge launcher v2 >>>`, pule.
+   - Se contiver apenas `# >>> forge launcher >>>` (sem v2), remova o bloco entre `# >>> forge launcher >>>` e `# <<< forge launcher <<<` e siga para o append.
+   - Append o bloco v2:
      ```powershell
-     # >>> forge launcher >>>
+     # >>> forge launcher v2 >>>
      # Lanca o Claude Code com o plugin Forge habilitado no canal informado.
+     # Le ~/.claude/channels/<canal>/mode ("edit" => bypassPermissions).
      # Uso: forge <canal> [args extras para claude]
      function forge {
        if ($args.Count -lt 1 -or $args[0].ToString().StartsWith('-')) {
          Write-Error "uso: forge <canal> [args extras]"
          return
        }
-       $env:FORGE_CHANNEL = $args[0]
-       if ($args.Count -gt 1) {
-         claude --dangerously-load-development-channels plugin:forge@forge @($args[1..($args.Count-1)])
+       $channel = $args[0]
+       $env:FORGE_CHANNEL = $channel
+       $modeFile = Join-Path $HOME ".claude/channels/$channel/mode"
+       $extra = if ($args.Count -gt 1) { $args[1..($args.Count-1)] } else { @() }
+       $mode = ''
+       if (Test-Path $modeFile) { $mode = (Get-Content $modeFile -Raw).Trim() }
+       if ($mode -eq 'edit') {
+         claude --dangerously-load-development-channels plugin:forge@forge --permission-mode bypassPermissions @extra
        } else {
-         claude --dangerously-load-development-channels plugin:forge@forge
+         claude --dangerously-load-development-channels plugin:forge@forge @extra
        }
      }
      # <<< forge launcher <<<
@@ -102,9 +129,9 @@ Parse `$ARGUMENTS` (trim whitespace).
    - Mensagem ao usuário: *"Reabra o PowerShell ou rode `. $PROFILE` para carregar o comando."*
    - Se o usuário tiver Git Bash / WSL, trate-o como Linux (use o `.bashrc` correspondente).
 
-7. Confirme: *"Canal `<nome>` configurado. Use `forge <nome>` de qualquer diretório para abrir o Claude com o Forge. Reabra o terminal ou recarregue o profile para o comando ficar disponível."*
-8. Mostre o status do canal (token mascarado, política, permitidos).
-9. Conduza a conversa (seção abaixo).
+8. Confirme: *"Canal `<nome>` configurado. Use `forge <nome>` de qualquer diretório para abrir o Claude com o Forge. Reabra o terminal ou recarregue o profile para o comando ficar disponível."*
+9. Mostre o status do canal (token mascarado, política, permitidos).
+10. Conduza a conversa (seção abaixo).
 
 ---
 
@@ -143,3 +170,4 @@ Após mostrar status:
 - `access.json` é relido a cada mensagem — mudanças via `/forge:access` têm efeito imediato.
 - **Nunca** rode `claude mcp add` / `claude mcp remove` — o plugin declara seu próprio server em `.mcp.json`. Instalações antigas podem ter entries órfãos `forge-*` em `~/.claude.json`; oriente o usuário a remover com `claude mcp remove forge-<nome> --scope user` se notar.
 - **Nada fica dentro dos projetos.** Toda a seleção de canal é feita via `FORGE_CHANNEL` (setado pelo launcher `forge`). Sem marker files, sem `.claude/forge-channel`.
+- **Modo do canal** (`~/.claude/channels/<canal>/mode`): contém `edit` ou `ask`. O launcher lê no boot — `edit` passa `--permission-mode bypassPermissions` ao `claude`. Troca via Telegram: `/mode edit` ou `/mode ask` (handlers do bot gravam o arquivo). Vale a partir da próxima sessão `forge <canal>`.
