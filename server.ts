@@ -78,8 +78,7 @@ const PERMISSION_REPLY_RE = /^\s*(y|yes|n|no)\s+([a-km-z]{5})\s*$/i
 const bot = new Bot(TOKEN)
 let botUsername = ''
 
-// Diretório de agentes relativo ao plugin root (process.cwd() no boot).
-const AGENTS_DIR = join(process.cwd(), 'agents')
+const AGENTS_DIR = join(import.meta.dir, 'agents')
 
 type PendingEntry = {
   senderId: string
