@@ -1,0 +1,46 @@
+@startuml 04-sequence-pairing
+title Forge — Fluxo de Pairing (autorização de remetente)
+
+skinparam shadowing false
+
+actor "Remetente\n(Telegram)" as U
+actor "Operador\n(terminal)" as Ops
+participant "Bot" as TG
+participant "server.ts" as S
+database "access.json" as A
+folder "approved/" as App
+participant "Skill\n/forge:access" as Skill
+
+U -> TG : primeira mensagem
+TG -> S : update
+S -> A : lê dmPolicy e allowFrom
+alt policy = "pairing" e remetente não autorizado
+    S -> S : gera código hex (6 chars, TTL 1h)
+    S -> A : salva em pending{ code → senderId }
+    S -> TG : responde instrução:\n"Rode /forge:access <canal> pair <code>"
+    TG -> U : exibe mensagem
+
+    Ops -> Skill : /forge:access <canal> pair <code>
+    Skill -> A : move pending → allowFrom
+    Skill -> App : escreve marker <senderId>
+
+    loop a cada 5s
+        S -> App : varre diretório
+    end
+    S -> App : encontra marker → remove
+    S -> TG : sendMessage("Pareado! Pode mandar sua tarefa.")
+    TG -> U : notificação
+
+else policy = "allowlist" e autorizado
+    S -> S : handleInbound (fluxo normal)
+else policy = "disabled" ou bloqueado
+    S -> S : drop silencioso
+end
+
+note over S,Skill
+  Regra de segurança: aprovação **só**
+  pelo operador no terminal.
+  Nunca via Telegram (risco de injeção).
+end note
+
+@enduml

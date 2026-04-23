@@ -1,0 +1,47 @@
+@startuml 01-context
+title Forge — Diagrama de Contexto (C4 Nível 1)
+
+skinparam rectangle {
+  RoundCorner 15
+}
+skinparam shadowing false
+
+actor "Usuário\n(solicitante)" as User
+actor "Operador\n(dono do terminal)" as Ops
+
+rectangle "Telegram" as TG #LightBlue {
+  component "Bot do canal\n(BotFather token)" as Bot
+}
+
+rectangle "Forge" as Forge #LightYellow {
+  component "Claude Code\n+ plugin Forge" as CC
+  component "Servidor MCP\n(server.ts / Bun)" as MCP
+  database "Estado do canal\n~/.claude/channels/<nome>/" as State
+}
+
+rectangle "Repositório local\n(working dir)" as Repo #LightGreen
+
+User --> Bot : envia tarefa / pergunta\n(texto, foto, documento)
+Bot <--> MCP : long polling (grammy)\nsendMessage / setReaction
+MCP --> CC : notifications/claude/channel\n(MCP stdio)
+CC --> MCP : forge_reply / forge_react /\nforge_edit_message /\nforge_download_attachment
+MCP --> State : lê .env, access.json, mode,\npid, approved/, inbox/
+CC --> Repo : lê/escreve código,\ncommits via git
+Ops --> CC : `forge <canal>` (launcher shell)
+Ops --> State : /forge:access, /forge:configure\n(aprovações, políticas)
+
+note right of MCP
+  Um servidor por canal.
+  Resolve FORGE_CHANNEL →
+  diretório de estado.
+  Gating antes de notificar
+  o Claude.
+end note
+
+note bottom of CC
+  Spawna 4 subagentes em sequência
+  para tarefas de desenvolvimento:
+  PO → Tech Lead → Developer → QA.
+end note
+
+@enduml

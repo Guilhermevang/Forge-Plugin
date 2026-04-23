@@ -1,0 +1,67 @@
+@startuml 05-deployment
+title Forge — Diagrama de Implantação
+
+skinparam shadowing false
+
+cloud "Telegram\nBot API" as TG
+
+node "Máquina do operador (Linux/macOS/Windows)" as Host {
+
+  node "Shell (bash/zsh/pwsh)" as Shell {
+    artifact "Launcher `forge`\n(função injetada no\n~/.bashrc / ~/.zshrc)" as Launcher
+  }
+
+  node "Processo Claude Code\n(CLI)" as CC {
+    component "Kernel" as Kern
+    component "Subagentes\n(PO, TL, Dev, QA)" as Sub
+    component "Skills\n(configure, access)" as Sk
+  }
+
+  node "Processo server.ts\n(Bun — MCP stdio)" as Srv {
+    component "grammy bot" as G
+    component "MCP tools" as MT
+    component "gate / handlers" as GH
+  }
+
+  folder "~/.claude/" as Home {
+    folder "channels/<nome>/" as Ch {
+      file ".env (chmod 600)" as EnvF
+      file "access.json" as Acc
+      file "mode" as Md
+      file "bot.pid" as Pid
+      folder "approved/" as Ap
+      folder "inbox/" as In
+    }
+    file "settings.json\n(allowlist Forge tools)" as Set
+    folder "plugins/forge/\n(server.ts, agents/, skills/)" as Plug
+  }
+
+  node "Repositório de trabalho\n(working directory)" as Repo {
+    file "CLAUDE.md" as CMD
+    file "código-fonte + .git" as Code
+  }
+}
+
+Launcher --> CC : exec claude\n+ FORGE_CHANNEL=<n>\n+ permission-mode
+CC <--> Srv : stdio (MCP)
+Srv <--> TG : HTTPS long polling
+Srv --> Ch : lê/escreve estado
+CC --> Set : carrega permissões
+CC --> Plug : carrega plugin
+Sub --> Repo : lê/edita código,\ngit commit
+Sk --> Ch : configura canais
+Sk --> Set : adiciona allowlist
+
+note right of Srv
+  1 processo por canal.
+  bot.pid evita 409 Conflict
+  (só um poller por token).
+end note
+
+note right of Launcher
+  Se mode=edit →
+    --permission-mode bypassPermissions
+  Senão → modo padrão (ask).
+end note
+
+@enduml

@@ -1,0 +1,56 @@
+@startuml 06-state-access
+title Forge — Máquina de Estados do Gating de Mensagens
+
+skinparam shadowing false
+
+[*] --> Recebida
+
+state Recebida
+Recebida --> AvaliaPolicy : gate()
+
+state AvaliaPolicy <<choice>>
+AvaliaPolicy --> Descartada : policy=disabled\nou chat bloqueado
+AvaliaPolicy --> AvaliaAllow : policy=allowlist
+AvaliaPolicy --> AvaliaPairing : policy=pairing
+AvaliaPolicy --> AvaliaGrupo : chat é grupo
+
+state AvaliaGrupo <<choice>>
+AvaliaGrupo --> Descartada : grupo não permitido
+AvaliaGrupo --> AvaliaMention : permitido
+state AvaliaMention <<choice>>
+AvaliaMention --> Entregue : requireMention=false\nou bot mencionado
+AvaliaMention --> Descartada : requireMention=true\ne sem menção
+
+state AvaliaAllow <<choice>>
+AvaliaAllow --> Entregue : sender ∈ allowFrom
+AvaliaAllow --> Descartada : não permitido
+
+state AvaliaPairing <<choice>>
+AvaliaPairing --> Entregue : sender ∈ allowFrom
+AvaliaPairing --> GerarCodigo : não autorizado
+
+state GerarCodigo
+GerarCodigo : cria código hex (TTL 1h)
+GerarCodigo : grava em pending{}
+GerarCodigo --> InstrucoesPair : responde no TG
+
+state InstrucoesPair
+InstrucoesPair --> AguardaAprovacao
+
+state AguardaAprovacao
+AguardaAprovacao : operador roda\n/forge:access pair <code>
+AguardaAprovacao --> Autorizado : skill move p/ allowFrom\ne escreve em approved/
+AguardaAprovacao --> Descartada : TTL expira
+
+state Autorizado
+Autorizado : watcher approved/ notifica "Pareado!"
+Autorizado --> [*]
+
+state Entregue
+Entregue : sendChatAction(typing)\n+ ackReaction\n+ MCP notification
+Entregue --> [*]
+
+state Descartada
+Descartada --> [*]
+
+@enduml

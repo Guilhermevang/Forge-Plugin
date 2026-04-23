@@ -1,0 +1,85 @@
+@startuml 02-components
+title Forge — Diagrama de Componentes (C4 Nível 3)
+
+skinparam componentStyle rectangle
+skinparam shadowing false
+
+package "Telegram Cloud" <<Cloud>> {
+  [Bot API] as TGAPI
+}
+
+package "Processo server.ts (Bun)" as Proc {
+
+  package "Camada de transporte" {
+    [grammy Bot\n(long polling)] as Grammy
+    [StdioServerTransport\n(MCP SDK)] as Stdio
+  }
+
+  package "Roteamento de mensagens" {
+    [Handlers de entrada\n(text / photo / document)] as Handlers
+    [gate()\npolítica + allowlist\n+ códigos de pairing] as Gate
+    [handleInbound()\nchunking + notificação MCP] as Inbound
+  }
+
+  package "Ferramentas MCP expostas" {
+    [forge_reply] as Treply
+    [forge_react] as Treact
+    [forge_edit_message] as Tedit
+    [forge_download_attachment] as Tdl
+  }
+
+  package "Serviços auxiliares" {
+    [Resolvedor de canal\n(FORGE_CHANNEL / .env)] as Resolver
+    [Watcher approved/\n(poll 5s)] as ApprWatch
+    [Gerenciador de PID\n(bot.pid)] as Pid
+    [Chunker de texto\n(4096 / newline)] as Chunker
+  }
+}
+
+package "Filesystem — estado por canal\n~/.claude/channels/<nome>/" as FS {
+  database ".env\n(FORGE_BOT_TOKEN)" as Env
+  database "access.json\n(policy, allowFrom,\ngroups, pending)" as Access
+  database "mode\n(edit | ask)" as Mode
+  database "bot.pid" as PidFile
+  folder "approved/" as ApprDir
+  folder "inbox/\n(fotos, documentos)" as Inbox
+}
+
+package "Claude Code (host)" as CC {
+  [Kernel do Claude] as Kernel
+  [Subagentes\nPO / Tech Lead /\nDeveloper / QA] as Agents
+  [Skills\nconfigure / access] as Skills
+}
+
+TGAPI <--> Grammy
+Grammy --> Handlers
+Handlers --> Gate
+Gate --> Access
+Gate --> Inbound : se "deliver"
+Gate --> Grammy : se "pair" ou "drop"\n(responde direto)
+Inbound --> Chunker
+Inbound --> Stdio : notifications/\nclaude/channel
+
+Stdio <--> Kernel
+Kernel --> Agents : spawn sequencial
+Kernel --> Treply : chama tools
+Kernel --> Treact
+Kernel --> Tedit
+Kernel --> Tdl
+Treply --> Chunker
+Treply --> Grammy
+Treact --> Grammy
+Tedit --> Grammy
+Tdl --> Inbox
+Tdl --> Grammy : getFile
+
+Resolver --> Env
+Resolver --> Mode
+ApprWatch --> ApprDir
+ApprWatch --> Grammy : envia "Pareado!"
+Pid --> PidFile
+
+Skills ..> FS : lê/escreve
+Skills ..> [settings.json\n(~/.claude/)] as Settings
+
+@enduml
