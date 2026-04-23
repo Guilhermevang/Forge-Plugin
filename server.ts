@@ -56,6 +56,7 @@ const PID_FILE = join(STATE_DIR, 'bot.pid')
 // Telegram só aceita um consumidor getUpdates por token. Mata qualquer poller
 // zumbi de sessões anteriores para evitar 409 Conflict.
 mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 })
+process.stderr.write(`forge channel: state dir = ${STATE_DIR}\n`)
 try {
   const stale = parseInt(readFileSync(PID_FILE, 'utf8'), 10)
   if (stale > 1 && stale !== process.pid) {
