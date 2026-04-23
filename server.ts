@@ -35,11 +35,6 @@ function resolveChannel(): { name: string; stateDir: string } | null {
   const envChannel = process.env.FORGE_CHANNEL?.trim()
   if (envChannel) return { name: envChannel, stateDir: join(channelsRoot, envChannel) }
 
-  try {
-    const marker = readFileSync(join(process.cwd(), '.claude', 'forge-channel'), 'utf8').trim()
-    if (marker) return { name: marker, stateDir: join(channelsRoot, marker) }
-  } catch {}
-
   return null
 }
 
@@ -58,8 +53,8 @@ let PID_FILE = ''
 
 if (!resolved) {
   CONFIG_ERROR =
-    `Forge não configurado para ${process.cwd()}. ` +
-    `Execute /forge:configure <nome> <token> neste projeto, ou defina FORGE_CHANNEL=<nome>.`
+    `Forge sem canal selecionado. Use o launcher \`forge <canal>\` ou defina FORGE_CHANNEL=<canal>. ` +
+    `Se ainda não criou um canal, rode /forge:configure <nome> <token>.`
   process.stderr.write(`forge channel: ${CONFIG_ERROR}\n`)
 } else {
   CHANNEL_NAME = resolved.name
