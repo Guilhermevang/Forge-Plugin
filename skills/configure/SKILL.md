@@ -71,7 +71,7 @@ Parse `$ARGUMENTS` (trim whitespace).
            return 1
          fi
          local _forge_ch="$1"; shift
-         FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels forge@forge "$@"
+         FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels plugin:forge@forge "$@"
        }
        # <<< forge launcher <<<
        ```
@@ -92,9 +92,9 @@ Parse `$ARGUMENTS` (trim whitespace).
        }
        $env:FORGE_CHANNEL = $args[0]
        if ($args.Count -gt 1) {
-         claude --dangerously-load-development-channels forge@forge @($args[1..($args.Count-1)])
+         claude --dangerously-load-development-channels plugin:forge@forge @($args[1..($args.Count-1)])
        } else {
-         claude --dangerously-load-development-channels forge@forge
+         claude --dangerously-load-development-channels plugin:forge@forge
        }
      }
      # <<< forge launcher <<<
