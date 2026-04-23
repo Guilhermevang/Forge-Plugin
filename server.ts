@@ -24,7 +24,7 @@ import { readFileSync, writeFileSync, mkdirSync, readdirSync, rmSync, statSync, 
 import { homedir } from 'os'
 import { join, extname, sep } from 'path'
 
-function resolveChannel(): { name: string; stateDir: string } {
+function resolveChannel(): { name: string; stateDir: string } | null {
   const channelsRoot = join(homedir(), '.claude', 'channels')
 
   if (process.env.FORGE_STATE_DIR) {
@@ -40,56 +40,72 @@ function resolveChannel(): { name: string; stateDir: string } {
     if (marker) return { name: marker, stateDir: join(channelsRoot, marker) }
   } catch {}
 
-  process.stderr.write(
-    `forge channel: nenhum canal selecionado para ${process.cwd()}\n` +
-    `  execute /forge:configure <nome> <token> dentro do projeto\n` +
-    `  ou defina FORGE_CHANNEL=<nome>\n`,
-  )
-  process.exit(1)
+  return null
 }
 
-const { name: CHANNEL_NAME, stateDir: STATE_DIR } = resolveChannel()
-const ACCESS_FILE = join(STATE_DIR, 'access.json')
-const APPROVED_DIR = join(STATE_DIR, 'approved')
-const ENV_FILE = join(STATE_DIR, '.env')
+const resolved = resolveChannel()
 
-// Carrega ~/.claude/channels/forge/.env em process.env. Variáveis reais têm prioridade.
-try {
-  chmodSync(ENV_FILE, 0o600)
-  for (const line of readFileSync(ENV_FILE, 'utf8').split('\n')) {
-    const m = line.match(/^(\w+)=(.*)$/)
-    if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+let CONFIG_ERROR: string | null = null
+let CHANNEL_NAME = ''
+let STATE_DIR = ''
+let ACCESS_FILE = ''
+let APPROVED_DIR = ''
+let ENV_FILE = ''
+let TOKEN: string | undefined
+let STATIC = false
+let INBOX_DIR = ''
+let PID_FILE = ''
+
+if (!resolved) {
+  CONFIG_ERROR =
+    `Forge não configurado para ${process.cwd()}. ` +
+    `Execute /forge:configure <nome> <token> neste projeto, ou defina FORGE_CHANNEL=<nome>.`
+  process.stderr.write(`forge channel: ${CONFIG_ERROR}\n`)
+} else {
+  CHANNEL_NAME = resolved.name
+  STATE_DIR = resolved.stateDir
+  ACCESS_FILE = join(STATE_DIR, 'access.json')
+  APPROVED_DIR = join(STATE_DIR, 'approved')
+  ENV_FILE = join(STATE_DIR, '.env')
+
+  // Carrega ~/.claude/channels/<canal>/.env em process.env. Variáveis reais têm prioridade.
+  try {
+    chmodSync(ENV_FILE, 0o600)
+    for (const line of readFileSync(ENV_FILE, 'utf8').split('\n')) {
+      const m = line.match(/^(\w+)=(.*)$/)
+      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2]
+    }
+  } catch {}
+
+  TOKEN = process.env.FORGE_BOT_TOKEN
+  STATIC = process.env.FORGE_ACCESS_MODE === 'static'
+
+  if (!TOKEN) {
+    CONFIG_ERROR =
+      `Forge canal "${CHANNEL_NAME}" sem FORGE_BOT_TOKEN. ` +
+      `Defina em ${ENV_FILE} (formato: FORGE_BOT_TOKEN=123456789:AAH...).`
+    process.stderr.write(`forge channel: ${CONFIG_ERROR}\n`)
+  } else {
+    INBOX_DIR = join(STATE_DIR, 'inbox')
+    PID_FILE = join(STATE_DIR, 'bot.pid')
   }
-} catch {}
-
-const TOKEN = process.env.FORGE_BOT_TOKEN
-const STATIC = process.env.FORGE_ACCESS_MODE === 'static'
-
-if (!TOKEN) {
-  process.stderr.write(
-    `forge channel: FORGE_BOT_TOKEN required\n` +
-    `  set in ${ENV_FILE}\n` +
-    `  format: FORGE_BOT_TOKEN=123456789:AAH...\n`,
-  )
-  process.exit(1)
 }
 
-const INBOX_DIR = join(STATE_DIR, 'inbox')
-const PID_FILE = join(STATE_DIR, 'bot.pid')
-
-// Telegram só aceita um consumidor getUpdates por token. Mata qualquer poller
-// zumbi de sessões anteriores para evitar 409 Conflict.
-mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 })
-process.stderr.write(`forge channel: canal "${CHANNEL_NAME}" — state dir = ${STATE_DIR}\n`)
-try {
-  const stale = parseInt(readFileSync(PID_FILE, 'utf8'), 10)
-  if (stale > 1 && stale !== process.pid) {
-    process.kill(stale, 0)
-    process.stderr.write(`forge channel: replacing stale poller pid=${stale}\n`)
-    process.kill(stale, 'SIGTERM')
-  }
-} catch {}
-writeFileSync(PID_FILE, String(process.pid))
+if (!CONFIG_ERROR) {
+  // Telegram só aceita um consumidor getUpdates por token. Mata qualquer poller
+  // zumbi de sessões anteriores para evitar 409 Conflict.
+  mkdirSync(STATE_DIR, { recursive: true, mode: 0o700 })
+  process.stderr.write(`forge channel: canal "${CHANNEL_NAME}" — state dir = ${STATE_DIR}\n`)
+  try {
+    const stale = parseInt(readFileSync(PID_FILE, 'utf8'), 10)
+    if (stale > 1 && stale !== process.pid) {
+      process.kill(stale, 0)
+      process.stderr.write(`forge channel: replacing stale poller pid=${stale}\n`)
+      process.kill(stale, 'SIGTERM')
+    }
+  } catch {}
+  writeFileSync(PID_FILE, String(process.pid))
+}
 
 process.on('unhandledRejection', err => {
   process.stderr.write(`forge channel: unhandled rejection: ${err}\n`)
@@ -100,7 +116,7 @@ process.on('uncaughtException', err => {
 
 const PERMISSION_REPLY_RE = /^\s*(y|yes|n|no)\s+([a-km-z]{5})\s*$/i
 
-const bot = new Bot(TOKEN)
+const bot: Bot = CONFIG_ERROR ? (null as unknown as Bot) : new Bot(TOKEN!)
 let botUsername = ''
 
 const AGENTS_DIR = join(import.meta.dir, 'agents')
@@ -327,7 +343,7 @@ function checkApprovals(): void {
   }
 }
 
-if (!STATIC) setInterval(checkApprovals, 5000).unref()
+if (!CONFIG_ERROR && !STATIC) setInterval(checkApprovals, 5000).unref()
 
 function chunk(text: string, limit: number, mode: 'length' | 'newline'): string[] {
   if (text.length <= limit) return [text]
@@ -433,6 +449,7 @@ mcp.setNotificationHandler(
     }),
   }),
   async ({ params }) => {
+    if (CONFIG_ERROR) return
     const { request_id, tool_name, description, input_preview } = params
     pendingPermissions.set(request_id, { tool_name, description, input_preview })
     const access = loadAccess()
@@ -525,6 +542,12 @@ mcp.setRequestHandler(ListToolsRequestSchema, async () => ({
 }))
 
 mcp.setRequestHandler(CallToolRequestSchema, async req => {
+  if (CONFIG_ERROR) {
+    return {
+      content: [{ type: 'text', text: CONFIG_ERROR }],
+      isError: true,
+    }
+  }
   const args = (req.params.arguments ?? {}) as Record<string, unknown>
   try {
     switch (req.params.name) {
@@ -675,6 +698,10 @@ setInterval(() => {
     process.stdin.readableEnded
   if (orphaned) shutdown()
 }, 5000).unref()
+
+if (CONFIG_ERROR) {
+  process.stderr.write('forge channel: rodando sem canal/token — MCP responde com instruções, bot desativado.\n')
+} else {
 
 bot.command('start', async ctx => {
   if (ctx.chat?.type !== 'private') return
@@ -969,3 +996,5 @@ void (async () => {
     }
   }
 })()
+
+}
