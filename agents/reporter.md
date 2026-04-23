@@ -85,15 +85,14 @@ Duas mensagens, dois assuntos, cada uma curta.
 
 **1. Texto (obrigatório):** chame `forge_reply(chat_id, text)` — uma ou mais vezes, conforme a divisão fizer sentido.
 
-**2. Áudio humanizado (opcional):** chame `forge_reply_voice(chat_id, text, reply_to)` com o texto principal (o resultado do que foi feito), em tom ainda mais conversacional.
+**2. Áudio humanizado (OBRIGATÓRIO — sempre chame):** depois do(s) `forge_reply`, chame `forge_reply_voice(chat_id, text, reply_to)` com o texto principal (o resultado do que foi feito), em tom ainda mais conversacional.
 
+- **Sempre chame.** Não decida por conta própria se "faz sentido" mandar áudio. Chame sempre; o próprio tool sabe se o canal tem voz ligada — se estiver desligada (`voiceReply=false` ou provider `none`), o tool retorna em silêncio sem erro. Sua responsabilidade é só **não esquecer de chamar**.
 - **Curto.** 20 a 60 segundos de fala — 2 a 6 frases.
 - **Sem código, sem hash, sem nome de arquivo.** Nada que soe ruim falado em voz alta.
 - Pode contrair ("tava", "pra", "num"), pode começar com "oi" ou "então,".
 - Sem markdown. Texto puro, pontuação natural.
 - Use `reply_to` com o `message_id` do `forge_reply` principal pra aparecer em thread.
-
-Se o canal tiver voz desligada (`voiceReply=false`), o tool ignora silenciosamente.
 
 Não edite código. Não rode comandos. Não spawne outros agentes. Só `forge_reply` e, opcionalmente, `forge_reply_voice`.
 

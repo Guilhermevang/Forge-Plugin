@@ -4,7 +4,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import type { AccessStore } from '../../access/store'
 import { assertAllowedChat } from '../../access/assert'
 import type { TtsService } from '../../tts'
-import { TtsError } from '../../tts'
+import { TtsDisabledError, TtsError } from '../../tts'
 import type { McpTool } from './deps'
 
 const INPUT_SCHEMA = {
@@ -62,13 +62,12 @@ export class ReplyVoiceTool implements McpTool {
     assertAllowedChat(this.store, args.chat_id)
 
     const access = this.store.load()
-    // Default = habilitado. Só desliga se o operador setar explicitamente voiceReply=false.
+    // Contrato: o Reporter chama sempre (áudio "obrigatório"); o tool decide se envia.
+    // Silenciamos sem erro quando TTS está desligado — por canal (voiceReply=false),
+    // por override de provider (access.voiceProvider='none') ou globalmente
+    // (FORGE_TTS_PROVIDER=none e sem override). Assim o agente não precisa saber a config.
     if (access.voiceReply === false) {
-      return {
-        content: [
-          { type: 'text' as const, text: 'voice desabilitado neste canal (voiceReply=false), pulado' },
-        ],
-      }
+      return this.silentSkip('voiceReply=false no canal')
     }
 
     const text = args.text.trim()
@@ -78,11 +77,17 @@ export class ReplyVoiceTool implements McpTool {
     const voice = args.voice ?? access.voiceName ?? undefined
     // Per-canal: access.voiceProvider escolhe a engine (edge|piper|none). Sem override → default do service.
     const provider = access.voiceProvider
+    const effectiveProvider = provider ?? this.tts.activeProvider
+    if (effectiveProvider === 'none') {
+      return this.silentSkip(`provider TTS desligado (${provider ? 'access.voiceProvider' : 'FORGE_TTS_PROVIDER'}=none)`)
+    }
 
     let result
     try {
       result = await this.tts.synthesize({ text, voice, rate: args.rate, provider })
     } catch (err) {
+      // TtsDisabledError = canal/provider explicitamente desligado → silencia.
+      if (err instanceof TtsDisabledError) return this.silentSkip(err.message)
       const msg = err instanceof TtsError ? err.message : (err as Error).message
       throw new Error(`forge_reply_voice: falha ao sintetizar: ${msg}`)
     }
@@ -97,6 +102,12 @@ export class ReplyVoiceTool implements McpTool {
     const sent = await this.bot.api.sendAudio(args.chat_id, new InputFile(result.filePath), opts)
     return {
       content: [{ type: 'text' as const, text: `áudio enviado (id: ${sent.message_id})` }],
+    }
+  }
+
+  private silentSkip(reason: string) {
+    return {
+      content: [{ type: 'text' as const, text: `voice pulado: ${reason}` }],
     }
   }
 }
