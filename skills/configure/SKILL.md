@@ -5,10 +5,13 @@ user-invocable: true
 allowed-tools:
   - Read
   - Write
+  - Edit
   - Bash(ls *)
   - Bash(mkdir *)
   - Bash(chmod *)
   - Bash(rm *)
+  - Bash(grep *)
+  - Bash(test *)
 ---
 
 # /forge:configure — Configuração de Canais Forge
@@ -50,9 +53,30 @@ Parse `$ARGUMENTS` (trim whitespace).
 5. `chmod 600 ~/.claude/channels/<nome>/.env`
 6. `mkdir -p ./.claude`
 7. Escreva `./.claude/forge-channel` com o conteúdo `<nome>` (sem newline final é ok — o servidor faz `.trim()`).
-8. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Reinicie o Claude Code com `claude --dangerously-load-development-channels` para ativar o MCP (o recurso `claude/channel` só é liberado para plugins de terceiros via essa flag — considere criar um alias no seu shell: `alias claude='claude --dangerously-load-development-channels'`)."*
-9. Mostre o status do canal (token mascarado, política, permitidos).
-10. Conduza a conversa (seção abaixo).
+8. **Instale a função `forge` no shell do usuário** (idempotente — não duplique se já existir):
+   - Detecte os rc files presentes: `~/.bashrc` e `~/.zshrc`. Se nenhum existir, use `~/.bashrc` como default.
+   - Para cada rc file existente (ou o default):
+     - Leia o arquivo. Se já contiver a linha marcadora `# >>> forge launcher >>>`, pule (já instalado).
+     - Caso contrário, **append** o seguinte bloco ao final (use `Write` em append-mode via leitura + concat, ou `Edit` adicionando após a última linha):
+       ```bash
+       # >>> forge launcher >>>
+       # Lança o Claude Code com a flag necessária para plugins com claude/channel.
+       # Uso: forge <canal> [args extras para claude]
+       #      forge                      # usa o canal pinado no projeto atual
+       forge() {
+         if [ -n "$1" ] && [ "${1#-}" = "$1" ]; then
+           local _forge_ch="$1"; shift
+           FORGE_CHANNEL="$_forge_ch" command claude --dangerously-load-development-channels "$@"
+         else
+           command claude --dangerously-load-development-channels "$@"
+         fi
+       }
+       # <<< forge launcher <<<
+       ```
+   - Informe ao usuário quais arquivos foram atualizados e que ele precisa rodar `source ~/.bashrc` (ou reabrir o terminal) para o comando ficar disponível.
+9. Confirme: *"Canal `<nome>` configurado e pinado neste projeto. Use `forge <nome>` (ou só `forge` dentro do projeto) para iniciar o Claude Code com o Forge ativado. Reabra o terminal ou rode `source ~/.bashrc` (ou `~/.zshrc`) para o comando ficar disponível."*
+10. Mostre o status do canal (token mascarado, política, permitidos).
+11. Conduza a conversa (seção abaixo).
 
 ---
 
